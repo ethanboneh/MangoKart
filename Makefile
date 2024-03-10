@@ -1,20 +1,27 @@
 # Sample makefile for project
-# Builds "myprogram.bin" from myprogram.c (edit PROGRAM to change)
-# Additional source file(s) mymodule.c (edit SOURCES to change)
+# Builds "3dgl.bin" from 3dgl.c (edit PROGRAM to change)
+# Additional source file(s) 3dgl.c (edit SOURCES to change)
 # Link against your libmango + reference libmango (edit LDLIBS, LDFLAGS to change)
 
-PROGRAM = myprogram.bin
-SOURCES = $(PROGRAM:.bin=.c) mymodule.c
+RUN_PROGRAM = play_game.bin
+TEST_PROGRAM  = test_graphics.bin
 
-all: $(PROGRAM)
+MY_MODULE_SOURCES = 3dgl.c # $(PROGRAM:.bin=.c) $(TEST_PROGRAM:.bin=.c) 
+
+
+PROGRAMS      = $(RUN_PROGRAM) $(TEST_PROGRAM)
+
+all: $(PROGRAMS)
 
 # Flags for compile and link
-ARCH 	= -march=rv64im -mabi=lp64
+ARCH    = -march=rv64im -mabi=lp64 # lp64d
 ASFLAGS = $(ARCH)
-CFLAGS 	= $(ARCH) -g -Og -I$$CS107E/include $$warn $$freestanding -fno-omit-frame-pointer
+CFLAGS  = $(ARCH) -g -Og -I$$CS107E/include $$warn $$freestanding -fno-omit-frame-pointer
 LDFLAGS = -nostdlib -L$$CS107E/lib -T memmap.ld
-LDLIBS 	= -lmango -lmango_gcc
+LDLIBS  = -lmango -lmango_gcc
 
+# Common objects for the programs built by this makefile
+SOURCES = $(MY_MODULE_SOURCES)
 OBJECTS = $(addsuffix .o, $(basename $(SOURCES)))
 
 # Rules and recipes for all build steps
@@ -23,8 +30,8 @@ OBJECTS = $(addsuffix .o, $(basename $(SOURCES)))
 %.bin: %.elf
 	riscv64-unknown-elf-objcopy $< -O binary $@
 
-# Link program executable from all common objects
-%.elf: $(OBJECTS) libmymango.a
+# Link program executable from program.o and all common objects
+%.elf: $(OBJECTS) %.o
 	riscv64-unknown-elf-gcc $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 # Compile C source to object file
@@ -35,13 +42,21 @@ OBJECTS = $(addsuffix .o, $(basename $(SOURCES)))
 %.o: %.s
 	riscv64-unknown-elf-as $(ASFLAGS) $< -o $@
 
+# Disassemble object file to asm listing
+%.list: %.o
+	riscv64-unknown-elf-objdump $(OBJDUMP_FLAGS) $<
+
 # Build and run the application binary
-run: $(PROGRAM)
+run: $(RUN_PROGRAM)
+	mango-run $<
+
+# Build and run the test binary
+test: $(TEST_PROGRAM)
 	mango-run $<
 
 # Remove all build products
 clean:
-	rm -f *.o *.bin *.elf *.list *~
+	rm -f *.o *.bin *.elf *.list
 
 # this rule will provide better error message when
 # a source file cannot be found (missing, misnamed)
