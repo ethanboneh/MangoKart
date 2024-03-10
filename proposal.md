@@ -1,23 +1,40 @@
-## Title of your project
+# 3D Game Engine - MangoKart
 
 ## Team members
+Asanshay Gupta and Ethan Boneh
 
 ## Project description
-Short description of the basic idea and end goal you are aiming for. 
-Include stretch goals and/or fallback position to indicate how you 
-might fine-tune the project scope if needed.
+A 3D graphics rendering module that renders a world in 3D given a camera position and the objects in the world and an implementation of that module in a game similar to MarioKart.
 
 ## Hardware, budget
-Itemize what hardware, if any, you need and your plan for acquiring it.
-Rough budget for the project. We can reimburse cost of parts up to $20 per person.
+- Accelerometer for controller
+- 3D Printed controller
 
 ## Tasks, member responsibilities
-Each team member should be responsible for a clearly identifiable part of the project.
+**Asanshay**: Drawing functions, rendering functions, object creation utilities, module design
+**Ethan**: Projection math, game design, hardware integration, accelerometer based control system
 
 ## Schedule, midpoint milestones
-What are the one-week goals you plan to meet for next week?
+
+1. Drawing functions 
+2. Projections
+3. Render function
+4. Draw axes, draw objects
+5. **3/10 Checkpoint 1**: rendering a basic object in a still frame (entirely in frame)
+6. Culling for performance
+7. **3/12 Checkpoint 2**: rendering any object in a still frame
+    1. Objects not all in frame
+    2. Objects behind each other
+8. Game module init
+9. Camera position movement based on keyboard
+10. Evaluate hardware/game options
+11. **3/13: Major Checkpoint 1:** replicate pygame graphics engine
+12. Implement hardware control
+13. Design game itself
+
 
 ## Resources needed, issues
-Are there books/code/tools/materials that you need access to? 
 What are the possible risks to overcome? What are you concerned about? 
+- It'll be hard to make the engine perform well, so that'll be the main challenge, as well as making an immersive game environment
 How can we help you succeed?
+- Lots of help with performance optimizations would be ideal
