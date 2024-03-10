@@ -1,5 +1,5 @@
 # no track build products
-*.a
+# *.a
 *.bin
 *.d
 *.elf
