@@ -14,7 +14,7 @@ static void swap(int *a, int *b)
     *b = temp;
 }
 
-void gl_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c)
+void gl3d_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c)
 {
     // Sort the vertices in ascending order based on y-coordinate
     if (y1 > y2)
@@ -111,6 +111,6 @@ void gl_draw_polygon(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int
         swap(&y2, &y3);
     }
 
-    gl_draw_triangle(x1, y1, x2, y2, x3, y3, c);
-    gl_draw_triangle(x4, y4, x2, y2, x3, y3, c);
+    gl3d_draw_triangle(x1, y1, x2, y2, x3, y3, c);
+    gl3d_draw_triangle(x4, y4, x2, y2, x3, y3, c);
 }
