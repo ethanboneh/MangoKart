@@ -4,14 +4,21 @@
 #include <gl.h>
 
 // dimensions necessary for projection/culling:
-static float screenW = 600;
-static float screenH = 600;
-static float nPlane = 60;
-static float fPlane = 1000;
+
+static struct
+{
+    float screenW;
+    float screenH;
+    float nPlane;
+    float fPlane;
+    Vec3 eye;
+    Vec3 center;
+    Vec3 up;
+    float viewMatrix[16];
+} module;
 
 // theta = (h/2)/nearPlane;
 static int theta;
-
 
 /* Projection Perspective Matrix:
 1/((w/h)tan(theta/2))  0  0  0
@@ -20,27 +27,152 @@ static int theta;
 0	0		1    0
 */
 
+void gl3d_init(float screenW, float screenH, float nPlane, float fPlane, Vec3 eye, Vec3 center)
+{
+    module.screenW = screenW;
+    module.screenH = screenH;
+    module.nPlane = nPlane;
+    module.fPlane = fPlane;
+
+    module.eye = eye;
+    module.center = center;
+    module.up = (Vec3){0.0, 1.0, 0.0};
+
+    lookAt(module.eye, module.center, module.up, module.viewMatrix);
+}
+
 // projects and does the perspective transform of the point
-float* projectPoint(float oldPoint[]) {
 
-    // apply projection matrix
-    float *newPoint = (float *)malloc(4 * sizeof(float));
-    newPoint[0] = oldPoint[0] / (screenW/screenH * (screenH/2)/nPlane);
-    newPoint[1] = oldPoint[1] / ((screenH/2)/nPlane);
-    newPoint[2] = oldPoint[2] * fPlane/(fPlane - nPlane) + oldPoint[3] * (-fPlane * nPlane)/(fPlane - nPlane);
-    newPoint[3] = oldPoint[2];
+/*
+ * Returns the square root of a number
+ * @param n the number to find the square root of
+ */
+static double sqrt(double n)
+{
+    double lo = 1 < n ? 1 : n;
+    double hi = 1 > n ? 1 : n;
+    double mid;
 
-    printf("%d\n", (int)newPoint[0]);
-    printf("%d\n", (int)newPoint[3]);
-    // scale x and y back up to the screen
-    newPoint[0] = (newPoint[0]/newPoint[3]); // + 1) * screenW/2;
-    newPoint[1] = (newPoint[1]/newPoint[3]); // + 1) * screenH/2;
+    while (100 * lo * lo < n)
+        lo *= 10;
+    while (0.01 * hi * hi > n)
+        hi *= 0.1;
+
+    for (int i = 0; i < 100; i++)
+    {
+        mid = (lo + hi) / 2;
+        if (mid * mid == n)
+            return mid;
+        if (mid * mid > n)
+            hi = mid;
+        else
+            lo = mid;
+    }
+    return mid;
+}
+
+// Basic vector operations
+Vec3 vec3_sub(Vec3 a, Vec3 b)
+{
+    return (Vec3){a.x - b.x, a.y - b.y, a.z - b.z};
+}
+
+Vec3 vec3_cross(Vec3 a, Vec3 b)
+{
+    return (Vec3){
+        a.y * b.z - a.z * b.y,
+        a.z * b.x - a.x * b.z,
+        a.x * b.y - a.y * b.x};
+}
+
+Vec3 vec3_normalize(Vec3 v)
+{
+    float len = sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    return (Vec3){v.x / len, v.y / len, v.z / len};
+}
+
+void lookAt(Vec3 eye, Vec3 center, Vec3 up, float *matrix)
+{
+    Vec3 f = vec3_normalize(vec3_sub(center, eye));
+    Vec3 s = vec3_normalize(vec3_cross(f, up));
+    Vec3 u = vec3_cross(s, f);
+
+    for (int i = 0; i < 16; i++)
+        matrix[i] = 0;
+    matrix[0] = s.x;
+    matrix[4] = s.y;
+    matrix[8] = s.z;
+    matrix[1] = u.x;
+    matrix[5] = u.y;
+    matrix[9] = u.z;
+    matrix[2] = -f.x;
+    matrix[6] = -f.y;
+    matrix[10] = -f.z;
+    matrix[15] = 1;
+    matrix[12] = -(s.x * eye.x + s.y * eye.y + s.z * eye.z);
+    matrix[13] = -(u.x * eye.x + u.y * eye.y + u.z * eye.z);
+    matrix[14] = (f.x * eye.x + f.y * eye.y + f.z * eye.z);
+}
+
+Vec3 transformPoint(float *matrix, Vec3 point)
+{
+    Vec3 result;
+    result.x = matrix[0] * point.x + matrix[4] * point.y + matrix[8] * point.z + matrix[12];
+    result.y = matrix[1] * point.x + matrix[5] * point.y + matrix[9] * point.z + matrix[13];
+    result.z = matrix[2] * point.x + matrix[6] * point.y + matrix[10] * point.z + matrix[14];
+    return result;
+}
+
+Vec2 projectPoint(Vec3 point)
+{
+    // Assuming the point is already in camera view space, apply perspective projection
+    float x = point.x * module.nPlane / point.z;
+    float y = point.y * module.nPlane / point.z;
+
+    // Map x and y from [-nPlane, nPlane] to [0, screenW] and [0, screenH], respectively
+    Vec2 newPoint;
+    newPoint.x = (x / module.nPlane + 1) * module.screenW * 0.5f;
+    newPoint.y = (y / module.nPlane + 1) * module.screenH * 0.5f;
 
     return newPoint;
 }
 
-int cullPoint(float point[]) {
-    if(point[3] > fPlane) return 0;
+Vec2 calculatePoint(Vec3 point)
+{
+    Vec3 viewPoint = transformPoint(module.viewMatrix, point);
+    Vec2 screenPoint = projectPoint(viewPoint);
+
+    return screenPoint;
+}
+
+/*
+ * Projects and does the perspective transform of the point
+ * @param oldPoint the point to be projected
+ * @return the new point after projection
+ */
+// float *projectPoint(float oldPoint[])
+// {
+
+//     // apply projection matrix
+//     float *newPoint = (float *)malloc(4 * sizeof(float));
+//     newPoint[0] = oldPoint[0] / (screenW / screenH * (screenH / 2) / nPlane);
+//     newPoint[1] = oldPoint[1] / ((screenH / 2) / nPlane);
+//     newPoint[2] = oldPoint[2] * fPlane / (fPlane - nPlane) + oldPoint[3] * (-fPlane * nPlane) / (fPlane - nPlane);
+//     newPoint[3] = oldPoint[2];
+
+//     printf("%d\n", (int)newPoint[0]);
+//     printf("%d\n", (int)newPoint[3]);
+//     // scale x and y back up to the screen
+//     newPoint[0] = (newPoint[0] / newPoint[3]); // + 1) * screenW/2;
+//     newPoint[1] = (newPoint[1] / newPoint[3]); // + 1) * screenH/2;
+
+//     return newPoint;
+// }
+
+int cullPoint(float point[])
+{
+    if (point[3] > module.fPlane)
+        return 0;
     return 1;
 }
 

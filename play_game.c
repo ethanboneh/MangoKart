@@ -13,7 +13,7 @@ static void pause(const char *message)
     uart_putchar('\n');
 }
 
-static void test_gl_lines_triangles(void)
+static void test_gl_polygons(void)
 {
     const int WIDTH = 800;
     const int HEIGHT = 600;
@@ -23,19 +23,18 @@ static void test_gl_lines_triangles(void)
     assert(gl_get_height() == HEIGHT);
     assert(gl_get_width() == WIDTH);
 
+    float pPoint[] = {30, 100, 60, 1};
 
-      float pPoint[] = {30,100,60,1};
+    gl_clear(GL_GREEN);
 
-      gl_clear(GL_GREEN);
-  
-      gl_draw_pixel(pPoint[0], pPoint[1], GL_PURPLE);
-  
-    float *nPoint = projectPoint(pPoint);
+    gl_draw_pixel(pPoint[0], pPoint[1], GL_PURPLE);
 
- printf("%d, ", (int)(100 *nPoint[0]));
- printf("%d", (int)(100 *nPoint[1]));
- 
-      gl_draw_pixel(nPoint[0] + 1, nPoint[1] + 1, GL_BLUE);
+    // float *nPoint = projectPoint(pPoint);
+
+    // printf("%d, ", (int)(100 * nPoint[0]));
+    // printf("%d", (int)(100 * nPoint[1]));
+
+    // gl_draw_pixel(nPoint[0] + 1, nPoint[1] + 1, GL_BLUE);
 
     // Show buffer with drawn contents
     gl_swap_buffer();
@@ -85,5 +84,5 @@ static void test_gl_lines_triangles(void)
 void main(void)
 {
     uart_init();
-    test_gl_lines_triangles();
+    test_gl_polygons();
 }
