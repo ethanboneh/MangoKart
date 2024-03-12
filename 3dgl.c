@@ -9,30 +9,18 @@ static struct
 {
     float screenW;
     float screenH;
-    float nPlane;
-    float fPlane;
     Vec3 eye;
     Vec3 center;
     Vec3 up;
     float viewMatrix[16];
 } module;
 
-// theta = (h/2)/nearPlane;
 static int theta;
 
-/* Projection Perspective Matrix:
-1/((w/h)tan(theta/2))  0  0  0
-0	1/tan(theta/2)    0  0
-0	0		f/(f-n) -fn/(f-n)
-0	0		1    0
-*/
-
-void gl3d_init(float screenW, float screenH, float nPlane, float fPlane, Vec3 eye, Vec3 center)
+void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)
 {
     module.screenW = screenW;
     module.screenH = screenH;
-    module.nPlane = nPlane;
-    module.fPlane = fPlane;
 
     module.eye = eye;
     module.center = center;
@@ -40,8 +28,6 @@ void gl3d_init(float screenW, float screenH, float nPlane, float fPlane, Vec3 ey
 
     lookAt(module.eye, module.center, module.up, module.viewMatrix);
 }
-
-// projects and does the perspective transform of the point
 
 /*
  * Returns the square root of a number
@@ -126,13 +112,13 @@ Vec3 transformPoint(float *matrix, Vec3 point)
 Vec2 projectPoint(Vec3 point)
 {
     // Assuming the point is already in camera view space, apply perspective projection
-    float x = point.x * module.nPlane / point.z;
-    float y = point.y * module.nPlane / point.z;
+    float x = point.x / point.z;
+    float y = point.y / point.z;
 
     // Map x and y from [-nPlane, nPlane] to [0, screenW] and [0, screenH], respectively
     Vec2 newPoint;
-    newPoint.x = (x / module.nPlane + 1) * module.screenW * 0.5f;
-    newPoint.y = (y / module.nPlane + 1) * module.screenH * 0.5f;
+    newPoint.x = (x + 1) * module.screenW * 0.5;
+    newPoint.y = (y + 1) * module.screenH * 0.5;
 
     return newPoint;
 }
@@ -145,55 +131,65 @@ Vec2 calculatePoint(Vec3 point)
     return screenPoint;
 }
 
-/*
- * Projects and does the perspective transform of the point
- * @param oldPoint the point to be projected
- * @return the new point after projection
- */
-// float *projectPoint(float oldPoint[])
-// {
+void draw_cube(Vec3 center, float width, color_t c)
+{
+    Vec3 cube_center = center;
+    float cube_width = width;
 
-//     // apply projection matrix
-//     float *newPoint = (float *)malloc(4 * sizeof(float));
-//     newPoint[0] = oldPoint[0] / (screenW / screenH * (screenH / 2) / nPlane);
-//     newPoint[1] = oldPoint[1] / ((screenH / 2) / nPlane);
-//     newPoint[2] = oldPoint[2] * fPlane / (fPlane - nPlane) + oldPoint[3] * (-fPlane * nPlane) / (fPlane - nPlane);
-//     newPoint[3] = oldPoint[2];
+    float half_width = cube_width / 2.0;
 
-//     printf("%d\n", (int)newPoint[0]);
-//     printf("%d\n", (int)newPoint[3]);
-//     // scale x and y back up to the screen
-//     newPoint[0] = (newPoint[0] / newPoint[3]); // + 1) * screenW/2;
-//     newPoint[1] = (newPoint[1] / newPoint[3]); // + 1) * screenH/2;
+    Vec3 point = (Vec3){cube_center.x + half_width, cube_center.y + half_width, cube_center.z - half_width};
+    Vec3 point2 = (Vec3){cube_center.x - half_width, cube_center.y + half_width, cube_center.z - half_width};
+    Vec3 point3 = (Vec3){cube_center.x + half_width, cube_center.y - half_width, cube_center.z - half_width};
+    Vec3 point4 = (Vec3){cube_center.x - half_width, cube_center.y - half_width, cube_center.z - half_width};
+    Vec3 point5 = (Vec3){cube_center.x + half_width, cube_center.y + half_width, cube_center.z + half_width};
+    Vec3 point6 = (Vec3){cube_center.x - half_width, cube_center.y + half_width, cube_center.z + half_width};
+    Vec3 point7 = (Vec3){cube_center.x + half_width, cube_center.y - half_width, cube_center.z + half_width};
+    Vec3 point8 = (Vec3){cube_center.x - half_width, cube_center.y - half_width, cube_center.z + half_width};
 
-//     return newPoint;
-// }
+    Vec2 screenPoint = calculatePoint(point);
+    Vec2 screenPoint2 = calculatePoint(point2);
+    Vec2 screenPoint3 = calculatePoint(point3);
+    Vec2 screenPoint4 = calculatePoint(point4);
+    Vec2 screenPoint5 = calculatePoint(point5);
+    Vec2 screenPoint6 = calculatePoint(point6);
+    Vec2 screenPoint7 = calculatePoint(point7);
+    Vec2 screenPoint8 = calculatePoint(point8);
+
+    gl_draw_pixel(screenPoint.x, screenPoint.y, c);
+    gl_draw_pixel(screenPoint2.x, screenPoint2.y, c);
+    gl_draw_pixel(screenPoint3.x, screenPoint3.y, c);
+    gl_draw_pixel(screenPoint4.x, screenPoint4.y, c);
+    gl_draw_pixel(screenPoint5.x, screenPoint5.y, c);
+    gl_draw_pixel(screenPoint6.x, screenPoint6.y, c);
+    gl_draw_pixel(screenPoint7.x, screenPoint7.y, c);
+    gl_draw_pixel(screenPoint8.x, screenPoint8.y, c);
+
+    // front face
+    gl_draw_line(screenPoint.x, screenPoint.y, screenPoint2.x, screenPoint2.y, c);
+    gl_draw_line(screenPoint.x, screenPoint.y, screenPoint3.x, screenPoint3.y, c);
+    gl_draw_line(screenPoint2.x, screenPoint2.y, screenPoint4.x, screenPoint4.y, c);
+    gl_draw_line(screenPoint3.x, screenPoint3.y, screenPoint4.x, screenPoint4.y, c);
+
+    // connectors
+    gl_draw_line(screenPoint.x, screenPoint.y, screenPoint5.x, screenPoint5.y, c);
+    gl_draw_line(screenPoint2.x, screenPoint2.y, screenPoint6.x, screenPoint6.y, c);
+    gl_draw_line(screenPoint3.x, screenPoint3.y, screenPoint7.x, screenPoint7.y, c);
+    gl_draw_line(screenPoint4.x, screenPoint4.y, screenPoint8.x, screenPoint8.y, c);
+
+    // back face
+    gl_draw_line(screenPoint5.x, screenPoint5.y, screenPoint6.x, screenPoint6.y, c);
+    gl_draw_line(screenPoint5.x, screenPoint5.y, screenPoint7.x, screenPoint7.y, c);
+    gl_draw_line(screenPoint6.x, screenPoint6.y, screenPoint8.x, screenPoint8.y, c);
+    gl_draw_line(screenPoint7.x, screenPoint7.y, screenPoint8.x, screenPoint8.y, c);
+}
 
 int cullPoint(float point[])
 {
-    if (point[3] > module.fPlane)
-        return 0;
+    // if (point[3] > module.fPlane)
+    //     return 0;
     return 1;
 }
-
-/*
-static struct 3dshape {
-    int (*x)[10];
-    int (*y)[10];
-    int (*z)[10];
-    int numVertices;
-} 3dshape;
-
-static struct 2dshape {
-    int (*x)[10];
-    int (*y)[10];
-    int numVertices;
-} 2dshape;
-
-
-static struct *currShape = (struct *currShape)malloc(sizeof(struct shape));
-static int d = 8;
-*/
 
 /*
  * Swaps the values of two integers in place
