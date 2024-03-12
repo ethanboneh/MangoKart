@@ -23,7 +23,20 @@ static void test_gl_lines_triangles(void)
     assert(gl_get_height() == HEIGHT);
     assert(gl_get_width() == WIDTH);
 
-    gl_clear(GL_GREEN);
+
+      float pPoint[] = {30,100,60,1};
+
+      gl_clear(GL_GREEN);
+  
+      gl_draw_pixel(pPoint[0], pPoint[1], GL_PURPLE);
+  
+    float *nPoint = projectPoint(pPoint);
+
+ printf("%d, ", (int)(100 *nPoint[0]));
+ printf("%d", (int)(100 *nPoint[1]));
+ 
+      gl_draw_pixel(nPoint[0] + 1, nPoint[1] + 1, GL_BLUE);
+
     // Show buffer with drawn contents
     gl_swap_buffer();
     pause("Cleared display with color green, click for lines");

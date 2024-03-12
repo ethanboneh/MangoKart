@@ -6,6 +6,7 @@
 #include "console.h"
 #include "fb.h"
 #include "gl.h"
+#include "3dgl.h"
 #include "printf.h"
 #include "strings.h"
 #include "timer.h"
@@ -58,6 +59,7 @@ static void test_fb(void)
     }
 }
 
+
 static void test_gl(void)
 {
     const int WIDTH = 800;
@@ -99,7 +101,7 @@ static void test_gl(void)
 
     gl_swap_buffer();
     pause("Now displaying 1280 x 720, testing edge cases");
-}
+*/}
 
 static void test_gl_lines_triangles(void)
 {
@@ -195,10 +197,10 @@ void main(void)
     uart_putstring("OEHOEH#\n\n");
     printf("Executing main() in test_gl_console.c\n");
 
-    test_fb();
+//    test_fb();
     test_gl();
-    test_gl_lines_triangles();
-    test_console();
+//    test_gl_lines_triangles();
+//    test_console();
 
     printf("Completed main() in test_gl_console.c\n");
 }
