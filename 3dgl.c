@@ -15,20 +15,6 @@ static struct
     float viewMatrix[16];
 } module;
 
-static int theta;
-
-void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)
-{
-    module.screenW = screenW;
-    module.screenH = screenH;
-
-    module.eye = eye;
-    module.center = center;
-    module.up = (Vec3){0.0, 1.0, 0.0};
-
-    lookAt(module.eye, module.center, module.up, module.viewMatrix);
-}
-
 /*
  * Returns the square root of a number
  * @param n the number to find the square root of
@@ -58,12 +44,12 @@ static double sqrt(double n)
 }
 
 // Basic vector operations
-Vec3 vec3_sub(Vec3 a, Vec3 b)
+static Vec3 vec3_sub(Vec3 a, Vec3 b)
 {
     return (Vec3){a.x - b.x, a.y - b.y, a.z - b.z};
 }
 
-Vec3 vec3_cross(Vec3 a, Vec3 b)
+static Vec3 vec3_cross(Vec3 a, Vec3 b)
 {
     return (Vec3){
         a.y * b.z - a.z * b.y,
@@ -71,13 +57,13 @@ Vec3 vec3_cross(Vec3 a, Vec3 b)
         a.x * b.y - a.y * b.x};
 }
 
-Vec3 vec3_normalize(Vec3 v)
+static Vec3 vec3_normalize(Vec3 v)
 {
     float len = sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     return (Vec3){v.x / len, v.y / len, v.z / len};
 }
 
-void lookAt(Vec3 eye, Vec3 center, Vec3 up, float *matrix)
+static void generate_look_at_matrix(Vec3 eye, Vec3 center, Vec3 up, float *matrix)
 {
     Vec3 f = vec3_normalize(vec3_sub(center, eye));
     Vec3 s = vec3_normalize(vec3_cross(f, up));
@@ -100,7 +86,7 @@ void lookAt(Vec3 eye, Vec3 center, Vec3 up, float *matrix)
     matrix[14] = (f.x * eye.x + f.y * eye.y + f.z * eye.z);
 }
 
-Vec3 transformPoint(float *matrix, Vec3 point)
+static Vec3 transform_point(float *matrix, Vec3 point)
 {
     Vec3 result;
     result.x = matrix[0] * point.x + matrix[4] * point.y + matrix[8] * point.z + matrix[12];
@@ -109,7 +95,7 @@ Vec3 transformPoint(float *matrix, Vec3 point)
     return result;
 }
 
-Vec2 projectPoint(Vec3 point)
+static Vec2 project_point(Vec3 point)
 {
     // Assuming the point is already in camera view space, apply perspective projection
     float x = point.x / point.z;
@@ -123,15 +109,29 @@ Vec2 projectPoint(Vec3 point)
     return newPoint;
 }
 
-Vec2 calculatePoint(Vec3 point)
+static Vec2 calculate_point(Vec3 point)
 {
-    Vec3 viewPoint = transformPoint(module.viewMatrix, point);
-    Vec2 screenPoint = projectPoint(viewPoint);
+    Vec3 viewPoint = transform_point(module.viewMatrix, point);
+    Vec2 screenPoint = project_point(viewPoint);
 
     return screenPoint;
 }
 
-void draw_cube(Vec3 center, float width, color_t c)
+/* =============== EXTERNAL DRAWING METHODS START HERE ======================== */
+
+void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)
+{
+    module.screenW = screenW;
+    module.screenH = screenH;
+
+    module.eye = eye;
+    module.center = center;
+    module.up = (Vec3){0.0, 1.0, 0.0};
+
+    generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
+}
+
+void gl3d_draw_cube(Vec3 center, float width, color_t c)
 {
     Vec3 cube_center = center;
     float cube_width = width;
@@ -147,14 +147,14 @@ void draw_cube(Vec3 center, float width, color_t c)
     Vec3 point7 = (Vec3){cube_center.x + half_width, cube_center.y - half_width, cube_center.z + half_width};
     Vec3 point8 = (Vec3){cube_center.x - half_width, cube_center.y - half_width, cube_center.z + half_width};
 
-    Vec2 screenPoint = calculatePoint(point);
-    Vec2 screenPoint2 = calculatePoint(point2);
-    Vec2 screenPoint3 = calculatePoint(point3);
-    Vec2 screenPoint4 = calculatePoint(point4);
-    Vec2 screenPoint5 = calculatePoint(point5);
-    Vec2 screenPoint6 = calculatePoint(point6);
-    Vec2 screenPoint7 = calculatePoint(point7);
-    Vec2 screenPoint8 = calculatePoint(point8);
+    Vec2 screenPoint = calculate_point(point);
+    Vec2 screenPoint2 = calculate_point(point2);
+    Vec2 screenPoint3 = calculate_point(point3);
+    Vec2 screenPoint4 = calculate_point(point4);
+    Vec2 screenPoint5 = calculate_point(point5);
+    Vec2 screenPoint6 = calculate_point(point6);
+    Vec2 screenPoint7 = calculate_point(point7);
+    Vec2 screenPoint8 = calculate_point(point8);
 
     gl_draw_pixel(screenPoint.x, screenPoint.y, c);
     gl_draw_pixel(screenPoint2.x, screenPoint2.y, c);
@@ -184,11 +184,25 @@ void draw_cube(Vec3 center, float width, color_t c)
     gl_draw_line(screenPoint7.x, screenPoint7.y, screenPoint8.x, screenPoint8.y, c);
 }
 
-int cullPoint(float point[])
+void gl3d_draw_axes(float length)
 {
-    // if (point[3] > module.fPlane)
-    //     return 0;
-    return 1;
+    Vec3 origin = (Vec3){0, 0, 0};
+    Vec3 x = (Vec3){length, 0, 0};
+    Vec3 y = (Vec3){0, length, 0};
+    Vec3 z = (Vec3){0, 0, length};
+
+    Vec2 origin_screen = calculate_point(origin);
+    Vec2 x_screen = calculate_point(x);
+    Vec2 y_screen = calculate_point(y);
+    Vec2 z_screen = calculate_point(z);
+
+    gl_draw_line(origin_screen.x, origin_screen.y, x_screen.x, x_screen.y, GL_RED);
+    gl_draw_line(origin_screen.x, origin_screen.y, y_screen.x, y_screen.y, GL_GREEN);
+    gl_draw_line(origin_screen.x, origin_screen.y, z_screen.x, z_screen.y, GL_BLUE);
+
+    int originsize = 2;
+    gl_draw_string(20, 20, "Axes: X is red, Y is green, Z is black", GL_BLACK);
+    gl_draw_rect(origin_screen.x - originsize, origin_screen.y - originsize, 2 * originsize, 2 * originsize, GL_BLACK);
 }
 
 /*

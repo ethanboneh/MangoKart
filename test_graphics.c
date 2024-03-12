@@ -56,35 +56,6 @@ static void test_gl_polygons(void)
     pause("Now displaying WIDTH x HEIGHT, testing polygons");
 }
 
-static void draw_road()
-{
-    // Vec3 topleft = (Vec3){-1000, 0, 0};
-    // Vec3 topright = (Vec3){0, 0, 0};
-    // Vec3 bottomleft = (Vec3){0, 0, 0};
-    // Vec3 bottomright = (Vec3){0, 0, 0};
-}
-
-static void draw_axes()
-{
-    Vec3 origin = (Vec3){0, 0, 0};
-    Vec3 x = (Vec3){50, 0, 0};
-    Vec3 y = (Vec3){0, 50, 0};
-    Vec3 z = (Vec3){0, 0, 50};
-
-    Vec2 origin_screen = calculatePoint(origin);
-    Vec2 x_screen = calculatePoint(x);
-    Vec2 y_screen = calculatePoint(y);
-    Vec2 z_screen = calculatePoint(z);
-
-    gl_draw_line(origin_screen.x, origin_screen.y, x_screen.x, x_screen.y, GL_RED);
-    gl_draw_line(origin_screen.x, origin_screen.y, y_screen.x, y_screen.y, GL_GREEN);
-    gl_draw_line(origin_screen.x, origin_screen.y, z_screen.x, z_screen.y, GL_BLUE);
-
-    int originsize = 2;
-    gl_draw_string(20, 20, "Axes: X is red, Y is green, Z is black", GL_BLACK);
-    gl_draw_rect(origin_screen.x - originsize, origin_screen.y - originsize, 2 * originsize, 2 * originsize, GL_BLACK);
-}
-
 void test_cubes()
 {
     const int WIDTH = 800;
@@ -108,10 +79,10 @@ void test_cubes()
     for (int i = 0; i < 400; i++)
     {
         gl_clear(GL_WHITE);
-        draw_axes();
+        gl3d_draw_axes(50);
 
-        draw_cube((Vec3){200 - (8 * i), 400.0 - (10 * i), -600.0}, 400, GL_BLUE);
-        draw_cube((Vec3){200.0 - (12 * i), -400 + (10 * i), 0.0}, 400, GL_RED);
+        gl3d_draw_cube((Vec3){200 - (8 * i), 400.0 - (10 * i), -600.0}, 400, GL_BLUE);
+        gl3d_draw_cube((Vec3){200.0 - (12 * i), -400 + (10 * i), 0.0}, 400, GL_RED);
 
         timer_delay_ms(frame_delay);
 

@@ -21,24 +21,20 @@ void gl3d_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t 
 
 void gl_draw_polygon(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4, color_t c);
 
-Vec3 vec3_sub(Vec3 a, Vec3 b);
+/*
+ * Draw a cube with center at `center` and width `width` with color `c`
+ *
+ * @param center: the center of the cube
+ * @param width: the width of the cube
+ * @param c: the color of the cube
+ */
+void gl3d_draw_cube(Vec3 center, float width, color_t c);
 
-Vec3 vec3_cross(Vec3 a, Vec3 b);
-
-float vec3_dot(Vec3 a, Vec3 b);
-
-Vec3 vec3_normalize(Vec3 v);
-
-void lookAt(Vec3 eye, Vec3 center, Vec3 up, float *matrix);
-
-Vec3 transformPoint(float *matrix, Vec3 point);
-
-Vec2 projectPoint(Vec3 point);
-
-Vec2 calculatePoint(Vec3 point);
-
-void draw_cube(Vec3 center, float width, color_t c);
-
-int cullPoint(float point[]);
+/*
+ * Draw axes with length `length`
+ *
+ * @param length: the length of the axes
+ */
+void gl3d_draw_axes(float length);
 
 #endif
