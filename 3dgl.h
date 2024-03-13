@@ -13,6 +13,14 @@ typedef struct
     float x, y;
 } Vec2;
 
+typedef struct {
+    Vec3 vertices[10];
+    int edges[10];
+    int faces[10];
+    int numVertices, numEdges, numFaces;
+    color_t color;
+} obj;
+
 void say_hello(const char *name);
 
 void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center);
@@ -20,6 +28,8 @@ void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center);
 void gl3d_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c);
 
 void gl_draw_polygon(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4, color_t c);
+
+void gl3d_draw_object(obj Object);
 
 void gl3d_clear(color_t c);
 

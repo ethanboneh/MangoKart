@@ -93,11 +93,19 @@ void test_cubes()
 
 void test_cubes_camera_movement()
 {
+    
     const int WIDTH = 1280;
     const int HEIGHT = 720;
     // Example setup
-    Vec3 eye = {450.0, 150.0, 500.0};
+    printf("got here");
+    Vec3 eye;
+    eye.x = 450.0;
+    eye.y = 150.0;
+    eye.z =  500.0;
+    printf("got here");
     Vec3 center = {0.0, 0.0, 0.0};
+
+    
 
     int frame_delay = 0;  // ms
     int load_time = 5000; // ms
@@ -105,10 +113,27 @@ void test_cubes_camera_movement()
     gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
 
     gl3d_init(WIDTH, HEIGHT, eye, center);
+    
+/*  testing draw object
+    Vec3 vertices[] = {{1,1,1}, {100,100,1}, {100,1,1}, {1,100,1}};
+    obj newObject;
+    for(int i = 0; i < 4; i++) {
+        newObject.vertices[i] = vertices[i];
+    }
+    newObject.numVertices = 4;
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
+
+    
+
+ //   gl3d_draw_object(newObject);
+
     gl_draw_string(320, 280, "Loading...", GL_WHITE);
     gl_swap_buffer();
+*/
+
+    pause("drawn object");
+    
     timer_delay_ms(load_time);
     int lastFrameTime = 10;
 
@@ -134,6 +159,7 @@ void test_cubes_camera_movement()
 
 void main(void)
 {
+    
     timer_init();
     uart_init();
     printf("Executing main() in test_gl_console.c\n");

@@ -12,6 +12,9 @@ static struct
     Vec3 eye;
     Vec3 center;
     Vec3 up;
+
+    obj Objects[10];
+
     float viewMatrix[16];
 } module;
 
@@ -109,6 +112,8 @@ static Vec2 calculate_point(Vec3 point)
     return screenPoint;
 }
 
+static int numObj = 0;
+
 /* =============== EXTERNAL DRAWING METHODS START HERE ======================== */
 
 void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)
@@ -121,6 +126,37 @@ void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)
     module.up = (Vec3){0.0, 1.0, 0.0};
 
     generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
+}
+
+//
+void gl3d_create_object(Vec3 vertices[], int numVertices, /*int edges[], int faces[], int numVertices, int numEdges, int numFaces,*/ color_t color) {
+    
+    obj newObject;
+    for(int i = 0; i < numVertices; i++) {
+        newObject.vertices[i] = vertices[i];
+    }
+    /*newObject.edges = edges;
+    newObject.faces = faces;
+    newObject.numVertices = numVertices;
+    newObject.numEdges = numEdges;
+    newObject.numFaces = numFaces;*/
+    newObject.color = color;
+
+    module.Objects[numObj] = newObject;
+    numObj++;
+}
+
+//
+void gl3d_draw_object(obj Object) {
+    int numVertices = Object.numVertices;
+    Vec2 mainPoint = calculate_point(Object.vertices[0]);
+    Vec2 cache = calculate_point(Object.vertices[1]);
+    
+    for(int i = 2; i < numVertices - 1; i++) {
+        Vec2 thirdPoint = calculate_point(Object.vertices[i + 1]);
+        gl3d_draw_triangle(mainPoint.x,mainPoint.y,cache.x,cache.y,thirdPoint.x,thirdPoint.y,Object.color);
+        cache = thirdPoint;
+    }
 }
 
 void gl3d_clear(color_t c)
@@ -284,6 +320,7 @@ void gl3d_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t 
         }
     }
 }
+
 
 void gl_draw_polygon(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4, color_t c)
 {
