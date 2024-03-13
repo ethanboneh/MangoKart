@@ -131,6 +131,19 @@ void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)
     generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
 }
 
+void gl3d_clear(color_t c)
+{
+    gl_clear(c);
+};
+
+void gl3d_move_camera(Vec3 eye, Vec3 center)
+{
+    module.eye = eye;
+    module.center = center;
+
+    generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
+}
+
 void gl3d_draw_cube(Vec3 center, float width, color_t c)
 {
     Vec3 cube_center = center;
@@ -202,7 +215,7 @@ void gl3d_draw_axes(float length)
 
     int originsize = 2;
     gl_draw_string(20, 20, "Axes: X is red, Y is green, Z is black", GL_BLACK);
-    gl_draw_rect(origin_screen.x - originsize, origin_screen.y - originsize, 2 * originsize, 2 * originsize, GL_BLACK);
+    gl3d_draw_cube(origin, 50, GL_BLACK);
 }
 
 /*

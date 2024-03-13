@@ -58,8 +58,8 @@ static void test_gl_polygons(void)
 
 void test_cubes()
 {
-    const int WIDTH = 800;
-    const int HEIGHT = 600;
+    const int WIDTH = 1280;
+    const int HEIGHT = 720;
     // Example setup
     Vec3 eye = {450.0, 150.0, 500.0};
     Vec3 center = {0.0, 0.0, 0.0};
@@ -88,6 +88,47 @@ void test_cubes()
 
         gl_swap_buffer();
     }
+    pause("Drawing moving cubes");
+}
+
+void test_cubes_camera_movement()
+{
+    const int WIDTH = 1280;
+    const int HEIGHT = 720;
+    // Example setup
+    Vec3 eye = {450.0, 150.0, 500.0};
+    Vec3 center = {0.0, 0.0, 0.0};
+
+    int frame_delay = 0;  // ms
+    int load_time = 5000; // ms
+
+    gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
+
+    gl3d_init(WIDTH, HEIGHT, eye, center);
+
+    gl_clear(gl_color(0x25, 0x59, 0x57));
+    gl_draw_string(320, 280, "Loading...", GL_WHITE);
+    gl_swap_buffer();
+    timer_delay_ms(load_time);
+    int lastFrameTime = 10;
+
+    for (int i = 0; i < 500; i++)
+    {
+        int startTime = timer_get_ticks();
+        int fps = 1000000 / lastFrameTime;
+        printf("FPS: %d\n", fps);
+        gl_clear(GL_SILVER);
+        gl3d_move_camera((Vec3){1000.0 + (3 * i), -200.0 + (5 * i), 1000.0 - (5 * i)}, center);
+        gl3d_draw_axes(50);
+
+        gl3d_draw_cube((Vec3){200, 400.0, -600.0}, 400, GL_BLUE);
+        gl3d_draw_cube((Vec3){200.0, -400, 0.0}, 400, GL_RED);
+
+        // timer_delay_ms(frame_delay);
+
+        gl_swap_buffer();
+        lastFrameTime = ((timer_get_ticks() - startTime) / TICKS_PER_USEC);
+    }
     pause("Drawin points");
 }
 
@@ -97,7 +138,8 @@ void main(void)
     uart_init();
     printf("Executing main() in test_gl_console.c\n");
 
-    test_cubes();
+    // test_cubes();
+    test_cubes_camera_movement();
 
     test_gl_polygons();
 
