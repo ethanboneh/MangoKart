@@ -19,28 +19,20 @@ static struct
  * Returns the square root of a number
  * @param n the number to find the square root of
  */
-static double sqrt(double n)
+static double sqrt(double x)
 {
-    double lo = 1 < n ? 1 : n;
-    double hi = 1 > n ? 1 : n;
-    double mid;
-
-    while (100 * lo * lo < n)
-        lo *= 10;
-    while (0.01 * hi * hi > n)
-        hi *= 0.1;
-
-    for (int i = 0; i < 100; i++)
-    {
-        mid = (lo + hi) / 2;
-        if (mid * mid == n)
-            return mid;
-        if (mid * mid > n)
-            hi = mid;
-        else
-            lo = mid;
-    }
-    return mid;
+   // keep floating point precision
+  double s = 1;
+  while (x > 100) {
+    x /= 100;
+    s *= 10;
+  }
+  int n = 15;
+  double res = x / 2;
+  while (n--) {
+    res = (res + x / res) / 2;
+  }
+  return s * res;
 }
 
 // Basic vector operations
