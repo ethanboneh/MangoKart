@@ -90,6 +90,11 @@ static Vec3 transform_point(float *matrix, Vec3 point)
     return result;
 }
 
+// culling
+static int outOfBounds(Vec2 point) {
+    return (point.x > module.screenW || point.x < 0 || point.y > module.screenH || point.y < 0);
+}
+
 static Vec2 project_point(Vec3 point)
 {
     // Assuming the point is already in camera view space, apply perspective projection
@@ -114,6 +119,64 @@ static Vec2 calculate_point(Vec3 point)
 
 static int numObj = 0;
 
+/* =============== OBJECT-LEVEL METHODS START HERE ======================== */
+
+// initalize objects and add to the object buffer
+void gl3d_create_object(face Faces[], int numVertices, int numFaces,/*int edges[], int faces[], int numVertices, int numEdges, int numFaces,*/ color_t color) {
+    
+    obj newObject;
+    for(int i = 0; i < numFaces; i++) {
+        newObject.Faces[i] = Faces[i];
+    }
+
+    newObject.numVertices = numVertices;
+    /*newObject.edges = edges;
+    newObject.faces = faces;
+    newObject.numVertices = numVertices;
+    newObject.numEdges = numEdges;
+    newObject.numFaces = numFaces;*/
+    newObject.color = color;
+
+    module.Objects[numObj] = newObject;
+    numObj++;
+}
+
+void gl3d_draw_face(face Face) {
+    Vec2 mainPoint = Face.vertices[0];
+    Vec2 cache = Face.vertices[1];
+    int numVertices = Face.numVertices;
+
+    for(int i = 2; i < numVertices; i++) {
+        Vec2 thirdPoint = Face.vertices[i];
+        gl3d_draw_triangle(mainPoint.x, mainPoint.y, cache.x, cache.y, thirdPoint.x, thirdPoint.y, Face.color);
+        cache = thirdPoint;
+    }
+}
+
+// projects, culls, then draws face
+void gl3d_draw_object(obj Object) {
+
+    int numVertices = Object.numVertices;
+    Vec2 mainPoint = calculate_point(Object.vertices[0]);
+    Vec2 cache = calculate_point(Object.vertices[1]);
+
+    for(int i = 0; i < Object.numFaces; i++) {
+        int faceVertices = Object.Faces[i].numVertices;
+
+        face currFace;
+        currFace.numVertices = faceVertices;
+        int numOutBounds = 0;
+
+        for(int j = 0; j < faceVertices; j++) {
+            currFace.vertices[j] = calculate_point(Object.Faces[i].vertices[j]);
+            numOutBounds += outOfBounds(currFace.vertices[j]);
+        }
+        if (numOutBounds == faceVertices) return;
+
+        gl3d_draw_face(currFace);
+    }
+}
+
 /* =============== EXTERNAL DRAWING METHODS START HERE ======================== */
 
 void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)
@@ -126,37 +189,6 @@ void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)
     module.up = (Vec3){0.0, 1.0, 0.0};
 
     generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
-}
-
-//
-void gl3d_create_object(Vec3 vertices[], int numVertices, /*int edges[], int faces[], int numVertices, int numEdges, int numFaces,*/ color_t color) {
-    
-    obj newObject;
-    for(int i = 0; i < numVertices; i++) {
-        newObject.vertices[i] = vertices[i];
-    }
-    /*newObject.edges = edges;
-    newObject.faces = faces;
-    newObject.numVertices = numVertices;
-    newObject.numEdges = numEdges;
-    newObject.numFaces = numFaces;*/
-    newObject.color = color;
-
-    module.Objects[numObj] = newObject;
-    numObj++;
-}
-
-//
-void gl3d_draw_object(obj Object) {
-    int numVertices = Object.numVertices;
-    Vec2 mainPoint = calculate_point(Object.vertices[0]);
-    Vec2 cache = calculate_point(Object.vertices[1]);
-    
-    for(int i = 2; i < numVertices - 1; i++) {
-        Vec2 thirdPoint = calculate_point(Object.vertices[i + 1]);
-        gl3d_draw_triangle(mainPoint.x,mainPoint.y,cache.x,cache.y,thirdPoint.x,thirdPoint.y,Object.color);
-        cache = thirdPoint;
-    }
 }
 
 void gl3d_clear(color_t c)

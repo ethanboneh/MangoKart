@@ -14,10 +14,14 @@ typedef struct
 } Vec2;
 
 typedef struct {
-    Vec3 vertices[10];
-    int edges[10];
-    int faces[10];
-    int numVertices, numEdges, numFaces;
+    Vec3 vertices[6];
+    int numVertices;
+    color_t color;
+} face;
+
+typedef struct {
+    face Faces[10];
+    int numVertices, numFaces;
     color_t color;
 } obj;
 
