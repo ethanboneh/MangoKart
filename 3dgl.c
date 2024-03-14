@@ -24,18 +24,20 @@ static struct
  */
 static double sqrt(double x)
 {
-   // keep floating point precision
-  double s = 1;
-  while (x > 100) {
-    x /= 100;
-    s *= 10;
-  }
-  int n = 15;
-  double res = x / 2;
-  while (n--) {
-    res = (res + x / res) / 2;
-  }
-  return s * res;
+    // keep floating point precision
+    double s = 1;
+    while (x > 100)
+    {
+        x /= 100;
+        s *= 10;
+    }
+    int n = 15;
+    double res = x / 2;
+    while (n--)
+    {
+        res = (res + x / res) / 2;
+    }
+    return s * res;
 }
 
 // Basic vector operations
@@ -91,7 +93,8 @@ static Vec3 transform_point(float *matrix, Vec3 point)
 }
 
 // culling
-static int outOfBounds(Vec2 point) {
+static int outOfBounds(Vec2 point)
+{
     return (point.x > module.screenW || point.x < 0 || point.y > module.screenH || point.y < 0);
 }
 
@@ -122,14 +125,16 @@ static int numObj = 0;
 /* =============== OBJECT-LEVEL METHODS START HERE ======================== */
 
 // initalize objects and add to the object buffer
-void gl3d_create_object(face Faces[], int numVertices, int numFaces,/*int edges[], int faces[], int numVertices, int numEdges, int numFaces,*/ color_t color) {
-    
+void gl3d_create_object(face Faces[], int numVertices, int numFaces, /*int edges[], int faces[], int numVertices, int numEdges, int numFaces,*/ color_t color)
+{
+
     obj newObject;
-    for(int i = 0; i < numFaces; i++) {
-        newObject.Faces[i] = Faces[i];
+    for (int i = 0; i < numFaces; i++)
+    {
+        newObject.faces[i] = Faces[i];
     }
 
-    newObject.numVertices = numVertices;
+    newObject.num_vertices = numVertices;
     /*newObject.edges = edges;
     newObject.faces = faces;
     newObject.numVertices = numVertices;
@@ -141,11 +146,13 @@ void gl3d_create_object(face Faces[], int numVertices, int numFaces,/*int edges[
     numObj++;
 }
 
-void gl3d_draw_face(Vec2 twoPts[], int numPts, color_t color) {
+void gl3d_draw_face(Vec2 twoPts[], int numPts, color_t color)
+{
     Vec2 mainPoint = twoPts[0];
     Vec2 cache = twoPts[1];
-    
-    for(int i = 2; i < numPts; i++) {
+
+    for (int i = 2; i < numPts; i++)
+    {
         Vec2 thirdPoint = twoPts[i];
         gl3d_draw_triangle(mainPoint.x, mainPoint.y, cache.x, cache.y, thirdPoint.x, thirdPoint.y, color);
         cache = thirdPoint;
@@ -153,22 +160,26 @@ void gl3d_draw_face(Vec2 twoPts[], int numPts, color_t color) {
 }
 
 // projects, culls, then draws face
-void gl3d_draw_object(obj Object) {
+void gl3d_draw_object(obj Object)
+{
 
-    int numVertices = Object.numVertices;
+    int numVertices = Object.num_vertices;
 
-    for(int i = 0; i < Object.numFaces; i++) {
-        int faceVertices = Object.Faces[i].numVertices;
+    for (int i = 0; i < Object.num_faces; i++)
+    {
+        int faceVertices = Object.faces[i].num_vertices;
 
         Vec2 twoPts[faceVertices];
         int numOutBounds = 0;
 
-        for(int j = 0; j < faceVertices; j++) {
-            twoPts[j] = calculate_point(Object.Faces[i].vertices[j]);
+        for (int j = 0; j < faceVertices; j++)
+        {
+            twoPts[j] = calculate_point(Object.faces[i].vertices[j]);
             numOutBounds += outOfBounds(twoPts[j]);
         }
 
-        if (numOutBounds == faceVertices) return;
+        if (numOutBounds == faceVertices)
+            return;
 
         gl3d_draw_face(twoPts, faceVertices, Object.color);
     }
@@ -349,7 +360,6 @@ void gl3d_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t 
         }
     }
 }
-
 
 void gl_draw_polygon(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4, color_t c)
 {

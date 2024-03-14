@@ -12,7 +12,8 @@
 #include "timer.h"
 #include "uart.h"
 
-// for testing
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
 
 static void pause(const char *message)
 {
@@ -26,8 +27,8 @@ static void pause(const char *message)
 
 static void test_gl_polygons(void)
 {
-    const int WIDTH = 800;
-    const int HEIGHT = 600;
+    const int WIDTH = SCREEN_WIDTH;
+    const int HEIGHT = SCREEN_HEIGHT;
 
     // Double buffer mode, make sure you test single buffer too!
     gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
@@ -58,8 +59,8 @@ static void test_gl_polygons(void)
 
 void test_cubes()
 {
-    const int WIDTH = 1280;
-    const int HEIGHT = 720;
+    const int WIDTH = SCREEN_WIDTH;
+    const int HEIGHT = SCREEN_HEIGHT;
     // Example setup
     Vec3 eye = {450.0, 150.0, 500.0};
     Vec3 center = {0.0, 0.0, 0.0};
@@ -72,7 +73,7 @@ void test_cubes()
     gl3d_init(WIDTH, HEIGHT, eye, center);
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
-    gl_draw_string(320, 280, "Loading...", GL_WHITE);
+    gl_draw_string(280, 280, "Loading cubes...", GL_WHITE);
     gl_swap_buffer();
     timer_delay_ms(load_time);
 
@@ -93,19 +94,12 @@ void test_cubes()
 
 void test_cubes_camera_movement()
 {
-    
-    const int WIDTH = 1280;
-    const int HEIGHT = 720;
-    // Example setup
-    printf("got here");
-    Vec3 eye;
-    eye.x = 450.0;
-    eye.y = 150.0;
-    eye.z =  500.0;
-    printf("got here");
-    Vec3 center = {0.0, 0.0, 0.0};
 
-    
+    const int WIDTH = SCREEN_WIDTH;
+    const int HEIGHT = SCREEN_HEIGHT;
+
+    Vec3 eye = {450.0, 150.0, 500.0};
+    Vec3 center = {0.0, 0.0, 0.0};
 
     int frame_delay = 0;  // ms
     int load_time = 5000; // ms
@@ -113,27 +107,11 @@ void test_cubes_camera_movement()
     gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
 
     gl3d_init(WIDTH, HEIGHT, eye, center);
-    
-/*  testing draw object
-    Vec3 vertices[] = {{1,1,1}, {100,100,1}, {100,1,1}, {1,100,1}};
-    obj newObject;
-    for(int i = 0; i < 4; i++) {
-        newObject.vertices[i] = vertices[i];
-    }
-    newObject.numVertices = 4;
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
-
-    
-
- //   gl3d_draw_object(newObject);
-
-    gl_draw_string(320, 280, "Loading...", GL_WHITE);
+    gl_draw_string(240, 280, "Loading camera movement...", GL_WHITE);
     gl_swap_buffer();
-*/
 
-    pause("drawn object");
-    
     timer_delay_ms(load_time);
     int lastFrameTime = 10;
 
@@ -157,15 +135,53 @@ void test_cubes_camera_movement()
     pause("Drawin points");
 }
 
+void test_draw_object()
+{
+    const int WIDTH = SCREEN_WIDTH;
+    const int HEIGHT = SCREEN_HEIGHT;
+
+    Vec3 eye = {450.0, 150.0, 500.0};
+    Vec3 center = {0.0, 0.0, 0.0};
+
+    int frame_delay = 0;  // ms
+    int load_time = 5000; // ms
+
+    gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
+
+    gl3d_init(WIDTH, HEIGHT, eye, center);
+
+    gl_clear(gl_color(0x25, 0x59, 0x57));
+    gl_draw_string(320, 280, "Loading objects...", GL_WHITE);
+    gl_swap_buffer();
+
+    timer_delay_ms(load_time);
+
+    //  testing draw object
+    Vec3 vertices[] = {{1, 1, 1}, {100, 100, 1}, {100, 1, 1}, {1, 100, 1}};
+    printf("Here 1\n");
+    obj newObject;
+    for (int i = 0; i < 4; i++)
+    {
+        printf("Here %d\n", i);
+        newObject.vertices[i] = vertices[i];
+    }
+    newObject.num_vertices = 4;
+
+    gl3d_draw_object(newObject);
+
+    pause("drawn object... [CLICK ANY KEY TO CONTINUE]");
+}
+
 void main(void)
 {
-    
+
     timer_init();
     uart_init();
     printf("Executing main() in test_gl_console.c\n");
 
     // test_cubes();
-    test_cubes_camera_movement();
+    // test_cubes_camera_movement();
+    test_draw_object();
 
     test_gl_polygons();
 

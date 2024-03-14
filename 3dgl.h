@@ -1,5 +1,5 @@
-#ifndef _MY_MODULE_H
-#define _MY_MODULE_H
+#ifndef _GL3D_H
+#define _GL3D_H
 
 #include <gl.h>
 
@@ -13,15 +13,24 @@ typedef struct
     float x, y;
 } Vec2;
 
-typedef struct {
+typedef struct
+{
     Vec3 vertices[6];
-    int numVertices;
-    color_t color;
+    int num_vertices;
 } face;
 
-typedef struct {
-    face Faces[10];
-    int numVertices, numFaces;
+typedef struct
+{
+    Vec3 vertices[2];
+} edge;
+
+typedef struct
+{
+    Vec3 vertices[30];
+    edge edges[30];
+    face faces[30];
+
+    int num_vertices, num_faces, num_edges;
     color_t color;
 } obj;
 
