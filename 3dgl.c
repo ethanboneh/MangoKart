@@ -46,6 +46,16 @@ static Vec3 vec3_sub(Vec3 a, Vec3 b)
     return (Vec3){a.x - b.x, a.y - b.y, a.z - b.z};
 }
 
+static Vec3 vec3_add(Vec3 a, Vec3 b)
+{
+    return (Vec3){a.x + b.x, a.y + b.y, a.z + b.z};
+}
+
+static Vec3 vec3_multi_scalar(Vec3 vec, float scalar)
+{
+    return (Vec3){vec.x * scalar, vec.y * scalar, vec.z * scalar};
+}
+
 static Vec3 vec3_cross(Vec3 a, Vec3 b)
 {
     return (Vec3){
@@ -125,25 +135,35 @@ static int numObj = 0;
 /* =============== OBJECT-LEVEL METHODS START HERE ======================== */
 
 // initalize objects and add to the object buffer
-void gl3d_create_object(face Faces[], int numVertices, int numFaces, /*int edges[], int faces[], int numVertices, int numEdges, int numFaces,*/ color_t color)
+obj gl3d_create_object(Vec3 vertices[], edge edges[], face faces[], int num_vertices, int num_edges, int num_faces, Vec3 translation, float scale, color_t color)
 {
+    obj object1;
 
-    obj newObject;
-    for (int i = 0; i < numFaces; i++)
+    object1.translation = translation;
+    object1.scale = scale;
+
+    object1.num_vertices = num_vertices;
+    object1.num_edges = num_edges;
+    object1.num_faces = num_faces;
+
+    for (int i = 0; i < object1.num_vertices; i++)
     {
-        newObject.faces[i] = Faces[i];
+        object1.vertices[i] = vertices[i];
     }
 
-    newObject.num_vertices = numVertices;
-    /*newObject.edges = edges;
-    newObject.faces = faces;
-    newObject.numVertices = numVertices;
-    newObject.numEdges = numEdges;
-    newObject.numFaces = numFaces;*/
-    newObject.color = color;
+    for (int i = 0; i < object1.num_edges; i++)
+    {
+        object1.edges[i] = edges[i];
+    }
 
-    module.Objects[numObj] = newObject;
-    numObj++;
+    for (int i = 0; i < object1.num_faces; i++)
+    {
+        object1.faces[i] = faces[i];
+    }
+
+    object1.color = color;
+
+    return object1;
 }
 
 void gl3d_draw_face(Vec2 twoPts[], int numPts, color_t color)
@@ -162,26 +182,35 @@ void gl3d_draw_face(Vec2 twoPts[], int numPts, color_t color)
 // projects, culls, then draws face
 void gl3d_draw_object(obj Object)
 {
+    int num_vertices = Object.num_vertices;
+    Vec2 projected_points[num_vertices];
 
-    int numVertices = Object.num_vertices;
+    for (int i = 0; i < num_vertices; i++)
+    {
+        Vec2 screen_point = calculate_point(vec3_add(vec3_multi_scalar(Object.vertices[i], Object.scale), Object.translation));
+        projected_points[i] = screen_point;
+        if (!outOfBounds(screen_point))
+        {
+            gl_draw_pixel(screen_point.x, screen_point.y, Object.color);
+            // gl_draw_char(screen_point.x, screen_point.y, '0' + i, GL_BLACK); // for debugging
+        }
+    }
 
     for (int i = 0; i < Object.num_faces; i++)
     {
-        int faceVertices = Object.faces[i].num_vertices;
+        Vec2 face_points[3];
+        face_points[0] = projected_points[Object.faces[i].a];
+        face_points[1] = projected_points[Object.faces[i].b];
+        face_points[2] = projected_points[Object.faces[i].c];
+        gl3d_draw_face(face_points, 3, Object.color);
+    }
 
-        Vec2 twoPts[faceVertices];
-        int numOutBounds = 0;
-
-        for (int j = 0; j < faceVertices; j++)
-        {
-            twoPts[j] = calculate_point(Object.faces[i].vertices[j]);
-            numOutBounds += outOfBounds(twoPts[j]);
-        }
-
-        if (numOutBounds == faceVertices)
-            return;
-
-        gl3d_draw_face(twoPts, faceVertices, Object.color);
+    for (int i = 0; i < Object.num_edges; i++)
+    {
+        Vec2 screen_point_1 = projected_points[Object.edges[i].i];
+        Vec2 screen_point_2 = projected_points[Object.edges[i].j];
+        if (!outOfBounds(screen_point_1) || !outOfBounds(screen_point_2))
+            gl_draw_line(screen_point_1.x, screen_point_1.y, screen_point_2.x, screen_point_2.y, GL_BLACK);
     }
 }
 
@@ -283,7 +312,6 @@ void gl3d_draw_axes(float length)
 
     int originsize = 2;
     gl_draw_string(20, 20, "Axes: X is red, Y is green, Z is black", GL_BLACK);
-    gl3d_draw_cube(origin, 50, GL_BLACK);
 }
 
 /*

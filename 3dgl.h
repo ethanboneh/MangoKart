@@ -15,14 +15,13 @@ typedef struct
 
 typedef struct
 {
-    Vec3 vertices[6];
-    int num_vertices;
-} face;
+    int i, j;
+} edge;
 
 typedef struct
 {
-    Vec3 vertices[2];
-} edge;
+    int a, b, c;
+} face;
 
 typedef struct
 {
@@ -32,6 +31,9 @@ typedef struct
 
     int num_vertices, num_faces, num_edges;
     color_t color;
+
+    Vec3 translation;
+    float scale;
 } obj;
 
 void say_hello(const char *name);
@@ -43,6 +45,8 @@ void gl3d_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t 
 void gl_draw_polygon(int x1, int y1, int x2, int y2, int x3, int y3, int x4, int y4, color_t c);
 
 void gl3d_draw_object(obj Object);
+
+obj gl3d_create_object(Vec3 vertices[], edge edges[], face faces[], int num_vertices, int num_edges, int num_faces, Vec3 translation, float scale, color_t color);
 
 void gl3d_clear(color_t c);
 

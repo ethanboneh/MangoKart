@@ -121,7 +121,7 @@ void test_cubes_camera_movement()
         int fps = 1000000 / lastFrameTime;
         printf("FPS: %d\n", fps);
         gl_clear(GL_SILVER);
-        gl3d_move_camera((Vec3){1000.0 + (3 * i), -200.0 + (5 * i), 1000.0 - (5 * i)}, center);
+        gl3d_move_camera((Vec3){1000.0 + (30 * i), -200.0 + (50 * i), 1000.0 - (50 * i)}, center);
         gl3d_draw_axes(50);
 
         gl3d_draw_cube((Vec3){200, 400.0, -600.0}, 400, GL_BLUE);
@@ -140,7 +140,7 @@ void test_draw_object()
     const int WIDTH = SCREEN_WIDTH;
     const int HEIGHT = SCREEN_HEIGHT;
 
-    Vec3 eye = {450.0, 150.0, 500.0};
+    Vec3 eye = {350.0, 150.0, 300.0};
     Vec3 center = {0.0, 0.0, 0.0};
 
     int frame_delay = 0;  // ms
@@ -150,24 +150,61 @@ void test_draw_object()
 
     gl3d_init(WIDTH, HEIGHT, eye, center);
 
+    int lastFrameTime = 10;
+
+    Vec3 vertices[] = {
+        (Vec3){0, 0, 0},
+        (Vec3){100, 0, 0},
+        (Vec3){100, 100, 0},
+        (Vec3){0, 100, 0},
+        (Vec3){0, 0, 100},
+        (Vec3){100, 0, 100},
+        (Vec3){100, 100, 100},
+        (Vec3){0, 100, 100},
+    };
+    edge edges[] = {
+        (edge){0, 5},
+        (edge){5, 1},
+        (edge){1, 0},
+        (edge){1, 2},
+        (edge){2, 5},
+        (edge){2, 0},
+    };
+
+    face faces[] = {
+        (face){2, 1, 5},
+        (face){0, 1, 5},
+    };
+
+    Vec3 translation = (Vec3){100, 0, 0};
+    float scale = 2;
+
+    int num_vertices = sizeof(vertices) / sizeof(Vec3);
+    int num_edges = sizeof(edges) / sizeof(edge);
+    int num_faces = sizeof(faces) / sizeof(face);
+
+    obj object1 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
+
     gl_clear(gl_color(0x25, 0x59, 0x57));
     gl_draw_string(320, 280, "Loading objects...", GL_WHITE);
     gl_swap_buffer();
 
     timer_delay_ms(load_time);
 
-    //  testing draw object
-    Vec3 vertices[] = {{1, 1, 1}, {100, 100, 1}, {100, 1, 1}, {1, 100, 1}};
-    printf("Here 1\n");
-    obj newObject;
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 500; i++)
     {
-        printf("Here %d\n", i);
-        newObject.vertices[i] = vertices[i];
-    }
-    newObject.num_vertices = 4;
+        int startTime = timer_get_ticks();
+        int fps = 1000000 / lastFrameTime;
+        printf("FPS: %d\n", fps);
+        gl3d_clear(GL_WHITE);
+        gl3d_move_camera((Vec3){3000.0 - (10 * i), 150.0 + (2 * i), 500.0 + (2 * i)}, center);
 
-    gl3d_draw_object(newObject);
+        gl3d_draw_axes(50);
+        gl3d_draw_object(object1);
+
+        gl_swap_buffer();
+        lastFrameTime = ((timer_get_ticks() - startTime) / TICKS_PER_USEC);
+    }
 
     pause("drawn object... [CLICK ANY KEY TO CONTINUE]");
 }
