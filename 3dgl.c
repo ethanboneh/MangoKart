@@ -141,14 +141,13 @@ void gl3d_create_object(face Faces[], int numVertices, int numFaces,/*int edges[
     numObj++;
 }
 
-void gl3d_draw_face(face Face) {
-    Vec2 mainPoint = Face.vertices[0];
-    Vec2 cache = Face.vertices[1];
-    int numVertices = Face.numVertices;
-
-    for(int i = 2; i < numVertices; i++) {
-        Vec2 thirdPoint = Face.vertices[i];
-        gl3d_draw_triangle(mainPoint.x, mainPoint.y, cache.x, cache.y, thirdPoint.x, thirdPoint.y, Face.color);
+void gl3d_draw_face(Vec2 twoPts[], int numPts, color_t color) {
+    Vec2 mainPoint = twoPts[0];
+    Vec2 cache = twoPts[1];
+    
+    for(int i = 2; i < numPts; i++) {
+        Vec2 thirdPoint = twoPts[i];
+        gl3d_draw_triangle(mainPoint.x, mainPoint.y, cache.x, cache.y, thirdPoint.x, thirdPoint.y, color);
         cache = thirdPoint;
     }
 }
@@ -157,23 +156,21 @@ void gl3d_draw_face(face Face) {
 void gl3d_draw_object(obj Object) {
 
     int numVertices = Object.numVertices;
-    Vec2 mainPoint = calculate_point(Object.vertices[0]);
-    Vec2 cache = calculate_point(Object.vertices[1]);
 
     for(int i = 0; i < Object.numFaces; i++) {
         int faceVertices = Object.Faces[i].numVertices;
 
-        face currFace;
-        currFace.numVertices = faceVertices;
+        Vec2 twoPts[faceVertices];
         int numOutBounds = 0;
 
         for(int j = 0; j < faceVertices; j++) {
-            currFace.vertices[j] = calculate_point(Object.Faces[i].vertices[j]);
-            numOutBounds += outOfBounds(currFace.vertices[j]);
+            twoPts[j] = calculate_point(Object.Faces[i].vertices[j]);
+            numOutBounds += outOfBounds(twoPts[j]);
         }
+
         if (numOutBounds == faceVertices) return;
 
-        gl3d_draw_face(currFace);
+        gl3d_draw_face(twoPts, faceVertices, Object.color);
     }
 }
 
