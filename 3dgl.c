@@ -214,6 +214,51 @@ void gl3d_draw_object(obj Object)
     }
 }
 
+
+// sorting:
+
+static float find_central_z(obj Object) {
+    float netZ = 0;
+    for(int i = 0; i < Object.num_vertices; i++) {
+        netZ += Object.vertices[i].z;
+    }
+    return netZ / Object.num_vertices;
+}
+
+static void swap_objects(obj *Ob1, obj *Ob2) {
+    obj temp;
+    temp = *Ob1;
+    *Ob1 = *Ob2;
+    *Ob2 = temp;
+}
+
+
+static int quicksort_partition(obj Objects[], int low, int high) {
+    float pivot = find_central_z(Objects[low]);
+    int j = high;
+
+    for(int i = high; i > low; i--) {
+        if(find_central_z(Objects[i]) < pivot) {
+            swap_objects(&Objects[j], &Objects[i]);
+            j--;
+        }
+    }
+
+    swap_objects(&Objects[j], &Objects[low]);
+    return j;
+}
+
+
+void gl3d_sort_objects(obj Objects[], int low, int high) {
+    if(low < high) {
+        int pivot = quicksort_partition(Objects, low, high);
+
+        gl3d_sort_objects(Objects, pivot + 1, high);
+        gl3d_sort_objects(Objects, low, pivot - 1);
+
+    }
+}
+
 /* =============== EXTERNAL DRAWING METHODS START HERE ======================== */
 
 void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)

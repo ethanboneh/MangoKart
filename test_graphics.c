@@ -189,6 +189,39 @@ void test_draw_object()
     gl_draw_string(320, 280, "Loading objects...", GL_WHITE);
     gl_swap_buffer();
 
+    // testing sorting
+    Vec3 vertices2[] = {
+        (Vec3){0, 0, 0},
+        (Vec3){100, 0, 0},
+        (Vec3){100, 100, 0},
+        (Vec3){0, 100, 0},
+        (Vec3){0, 0, 50},
+        (Vec3){100, 0, 50},
+        (Vec3){100, 100, 50},
+        (Vec3){0, 100, 50},
+    };
+
+    Vec3 vertices3[] = {
+        (Vec3){0, 0, 0},
+        (Vec3){100, 0, 0},
+        (Vec3){100, 100, 0},
+        (Vec3){0, 100, 0},
+        (Vec3){0, 0, 25},
+        (Vec3){100, 0, 25},
+        (Vec3){100, 100, 25},
+        (Vec3){0, 100, 25},
+    };
+
+
+    obj object2 = gl3d_create_object(vertices2, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
+    obj object3 = gl3d_create_object(vertices3, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
+
+    obj Objects[] = {object3, object2, object1};
+    gl3d_sort_objects(Objects, 0, 2);
+
+    printf("\n%d", (int)Objects[0].vertices[5].z);
+    printf("\n%d", (int)Objects[1].vertices[5].z);
+
     timer_delay_ms(load_time);
 
     for (int i = 0; i < 500; i++)

@@ -74,4 +74,6 @@ void gl3d_draw_axes(float length);
  */
 void gl3d_move_camera(Vec3 eye, Vec3 center);
 
+void gl3d_sort_objects(obj Objects[], int low, int high);
+
 #endif
