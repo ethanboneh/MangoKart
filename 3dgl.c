@@ -185,17 +185,19 @@ void gl3d_draw_object(obj Object)
     int num_vertices = Object.num_vertices;
     Vec2 projected_points[num_vertices];
 
+    // VERTICES
     for (int i = 0; i < num_vertices; i++)
     {
         Vec2 screen_point = calculate_point(vec3_add(vec3_multi_scalar(Object.vertices[i], Object.scale), Object.translation));
         projected_points[i] = screen_point;
-        if (!outOfBounds(screen_point))
-        {
-            gl_draw_pixel(screen_point.x, screen_point.y, Object.color);
-            // gl_draw_char(screen_point.x, screen_point.y, '0' + i, GL_BLACK); // for debugging
-        }
+        // if (!outOfBounds(screen_point))
+        // {
+        //     gl_draw_pixel(screen_point.x, screen_point.y, Object.color);
+        //     gl_draw_char(screen_point.x, screen_point.y, '0' + i, GL_BLACK); // for debugging
+        // }
     }
 
+    // FACES
     for (int i = 0; i < Object.num_faces; i++)
     {
         Vec2 face_points[3];
@@ -205,6 +207,7 @@ void gl3d_draw_object(obj Object)
         gl3d_draw_face(face_points, 3, Object.color);
     }
 
+    // EDGES
     for (int i = 0; i < Object.num_edges; i++)
     {
         Vec2 screen_point_1 = projected_points[Object.edges[i].i];
@@ -214,48 +217,60 @@ void gl3d_draw_object(obj Object)
     }
 }
 
+static float find_central_z(obj o)
+{
+    float netZ = 0;
+    for (int i = 0; i < o.num_vertices; i++)
+    {
+        netZ += transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(o.vertices[i], o.scale), o.translation)).z;
+    }
+    return netZ / o.num_vertices;
+}
+
+void gl3d_draw_objects(obj objects[], int num_objects)
+{
+    gl3d_sort_objects(objects, 0, num_objects - 1);
+    for (int i = 0; i < num_objects; i++)
+    {
+        gl3d_draw_object(objects[i]);
+    }
+}
 
 // sorting:
 
-static float find_central_z(obj Object) {
-    float netZ = 0;
-    for(int i = 0; i < Object.num_vertices; i++) {
-        netZ += Object.vertices[i].z;
-    }
-    return netZ / Object.num_vertices;
-}
-
-static void swap_objects(obj *Ob1, obj *Ob2) {
+static void swap_objects(obj *ob1, obj *ob2)
+{
     obj temp;
-    temp = *Ob1;
-    *Ob1 = *Ob2;
-    *Ob2 = temp;
+    temp = *ob1;
+    *ob1 = *ob2;
+    *ob2 = temp;
 }
 
+static int quicksort_partition(obj Objects[], int low, int high)
+{
+    float pivot = find_central_z(Objects[high]); // Pivot
+    int i = (low - 1);                           // Index of smaller element
 
-static int quicksort_partition(obj Objects[], int low, int high) {
-    float pivot = find_central_z(Objects[low]);
-    int j = high;
-
-    for(int i = high; i > low; i--) {
-        if(find_central_z(Objects[i]) < pivot) {
-            swap_objects(&Objects[j], &Objects[i]);
-            j--;
+    for (int j = low; j <= high - 1; j++)
+    {
+        // If current element is smaller than or equal to pivot
+        if (find_central_z(Objects[j]) <= pivot)
+        {
+            i++; // Increment index of smaller element
+            swap_objects(&Objects[i], &Objects[j]);
         }
     }
-
-    swap_objects(&Objects[j], &Objects[low]);
-    return j;
+    swap_objects(&Objects[i + 1], &Objects[high]);
+    return (i + 1);
 }
 
-
-void gl3d_sort_objects(obj Objects[], int low, int high) {
-    if(low < high) {
+void gl3d_sort_objects(obj Objects[], int low, int high)
+{
+    if (low < high)
+    {
         int pivot = quicksort_partition(Objects, low, high);
-
-        gl3d_sort_objects(Objects, pivot + 1, high);
         gl3d_sort_objects(Objects, low, pivot - 1);
-
+        gl3d_sort_objects(Objects, pivot + 1, high);
     }
 }
 

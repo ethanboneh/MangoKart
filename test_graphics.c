@@ -176,64 +176,44 @@ void test_draw_object()
         (face){0, 1, 5},
     };
 
-    Vec3 translation = (Vec3){100, 0, 0};
+    Vec3 translation = (Vec3){200, 0, -50};
+    Vec3 translation2 = (Vec3){-100, 0, 0};
+    Vec3 translation3 = (Vec3){0, 0, 100};
     float scale = 2;
+    float scale2 = 1;
+    float scale3 = 3;
 
     int num_vertices = sizeof(vertices) / sizeof(Vec3);
     int num_edges = sizeof(edges) / sizeof(edge);
     int num_faces = sizeof(faces) / sizeof(face);
 
     obj object1 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
+    obj object2 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation2, scale2, GL_MOSS);
+    obj object3 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation3, scale3, GL_CYAN);
+
+    obj objects[] = {object3, object2, object1};
+
+    printf("\n%d\n", (int)objects[0].vertices[5].z);
+    printf("%d\n", (int)objects[1].vertices[5].z);
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
     gl_draw_string(320, 280, "Loading objects...", GL_WHITE);
     gl_swap_buffer();
 
-    // testing sorting
-    Vec3 vertices2[] = {
-        (Vec3){0, 0, 0},
-        (Vec3){100, 0, 0},
-        (Vec3){100, 100, 0},
-        (Vec3){0, 100, 0},
-        (Vec3){0, 0, 50},
-        (Vec3){100, 0, 50},
-        (Vec3){100, 100, 50},
-        (Vec3){0, 100, 50},
-    };
-
-    Vec3 vertices3[] = {
-        (Vec3){0, 0, 0},
-        (Vec3){100, 0, 0},
-        (Vec3){100, 100, 0},
-        (Vec3){0, 100, 0},
-        (Vec3){0, 0, 25},
-        (Vec3){100, 0, 25},
-        (Vec3){100, 100, 25},
-        (Vec3){0, 100, 25},
-    };
-
-
-    obj object2 = gl3d_create_object(vertices2, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
-    obj object3 = gl3d_create_object(vertices3, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
-
-    obj Objects[] = {object3, object2, object1};
-    gl3d_sort_objects(Objects, 0, 2);
-
-    printf("\n%d", (int)Objects[0].vertices[5].z);
-    printf("\n%d", (int)Objects[1].vertices[5].z);
-
     timer_delay_ms(load_time);
 
-    for (int i = 0; i < 500; i++)
+    gl_swap_buffer();
+
+    for (int i = 0; i < 200; i++)
     {
         int startTime = timer_get_ticks();
         int fps = 1000000 / lastFrameTime;
         printf("FPS: %d\n", fps);
         gl3d_clear(GL_WHITE);
-        gl3d_move_camera((Vec3){3000.0 - (10 * i), 150.0 + (2 * i), 500.0 + (2 * i)}, center);
+        gl3d_move_camera((Vec3){3000.0 - (30 * i), 150.0 + (6 * i), 500.0 + (6 * i)}, center);
 
         gl3d_draw_axes(50);
-        gl3d_draw_object(object1);
+        gl3d_draw_objects(objects, 3);
 
         gl_swap_buffer();
         lastFrameTime = ((timer_get_ticks() - startTime) / TICKS_PER_USEC);
