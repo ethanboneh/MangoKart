@@ -176,9 +176,39 @@ void test_draw_object()
         (face){0, 1, 5},
     };
 
+    edge cube_edges[] = {
+        (edge){1, 5},
+        (edge){5, 4},
+        (edge){0, 4},
+        (edge){0, 1},
+        (edge){2, 6},
+        (edge){6, 7},
+        (edge){3, 7},
+        (edge){3, 2},
+        (edge){5, 6},
+        (edge){4, 7},
+        (edge){2, 1},
+        (edge){0, 3},
+    };
+
+    face cube_faces[] = {
+        (face){2, 1, 5},
+        (face){2, 6, 5},
+        (face){0, 1, 5},
+        (face){0, 4, 5},
+        (face){6, 4, 5},
+        (face){6, 4, 7},
+        (face){0, 7, 4},
+        (face){0, 7, 3},
+        (face){0, 2, 1},
+        (face){0, 2, 3},
+    };
+
     Vec3 translation = (Vec3){200, 0, -50};
     Vec3 translation2 = (Vec3){-100, 0, 0};
     Vec3 translation3 = (Vec3){0, 0, 100};
+    Vec3 translation4 = (Vec3){-200, 0, 200};
+
     float scale = 2;
     float scale2 = 1;
     float scale3 = 3;
@@ -187,14 +217,17 @@ void test_draw_object()
     int num_edges = sizeof(edges) / sizeof(edge);
     int num_faces = sizeof(faces) / sizeof(face);
 
+    int num_cube_edges = sizeof(cube_edges) / sizeof(edge);
+    int num_cube_faces = sizeof(cube_faces) / sizeof(face);
+
     obj object1 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
     obj object2 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation2, scale2, GL_MOSS);
     obj object3 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation3, scale3, GL_CYAN);
+    obj object4 = gl3d_create_object(vertices, cube_edges, cube_faces, num_vertices, num_cube_edges, num_cube_faces, translation4, scale, GL_RED);
 
-    obj objects[] = {object3, object2, object1};
+    obj objects[] = {object4, object3, object2, object1};
 
-    printf("\n%d\n", (int)objects[0].vertices[5].z);
-    printf("%d\n", (int)objects[1].vertices[5].z);
+    int num_objects = sizeof(objects) / sizeof(obj);
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
     gl_draw_string(320, 280, "Loading objects...", GL_WHITE);
@@ -213,9 +246,10 @@ void test_draw_object()
         gl3d_move_camera((Vec3){3000.0 - (30 * i), 150.0 + (6 * i), 500.0 + (6 * i)}, center);
 
         gl3d_draw_axes(50);
-        gl3d_draw_objects(objects, 3);
+        gl3d_draw_objects(objects, num_objects);
 
         gl_swap_buffer();
+        // pause("Click to step forward!");
         lastFrameTime = ((timer_get_ticks() - startTime) / TICKS_PER_USEC);
     }
 

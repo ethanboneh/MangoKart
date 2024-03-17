@@ -179,44 +179,6 @@ void gl3d_draw_face(Vec2 twoPts[], int numPts, color_t color)
     }
 }
 
-// projects, culls, then draws face
-void gl3d_draw_object(obj Object)
-{
-    int num_vertices = Object.num_vertices;
-    Vec2 projected_points[num_vertices];
-
-    // VERTICES
-    for (int i = 0; i < num_vertices; i++)
-    {
-        Vec2 screen_point = calculate_point(vec3_add(vec3_multi_scalar(Object.vertices[i], Object.scale), Object.translation));
-        projected_points[i] = screen_point;
-        // if (!outOfBounds(screen_point))
-        // {
-        //     gl_draw_pixel(screen_point.x, screen_point.y, Object.color);
-        //     gl_draw_char(screen_point.x, screen_point.y, '0' + i, GL_BLACK); // for debugging
-        // }
-    }
-
-    // FACES
-    for (int i = 0; i < Object.num_faces; i++)
-    {
-        Vec2 face_points[3];
-        face_points[0] = projected_points[Object.faces[i].a];
-        face_points[1] = projected_points[Object.faces[i].b];
-        face_points[2] = projected_points[Object.faces[i].c];
-        gl3d_draw_face(face_points, 3, Object.color);
-    }
-
-    // EDGES
-    for (int i = 0; i < Object.num_edges; i++)
-    {
-        Vec2 screen_point_1 = projected_points[Object.edges[i].i];
-        Vec2 screen_point_2 = projected_points[Object.edges[i].j];
-        if (!outOfBounds(screen_point_1) || !outOfBounds(screen_point_2))
-            gl_draw_line(screen_point_1.x, screen_point_1.y, screen_point_2.x, screen_point_2.y, GL_BLACK);
-    }
-}
-
 static float find_central_z(obj o)
 {
     float netZ = 0;
@@ -225,15 +187,6 @@ static float find_central_z(obj o)
         netZ += transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(o.vertices[i], o.scale), o.translation)).z;
     }
     return netZ / o.num_vertices;
-}
-
-void gl3d_draw_objects(obj objects[], int num_objects)
-{
-    gl3d_sort_objects(objects, 0, num_objects - 1);
-    for (int i = 0; i < num_objects; i++)
-    {
-        gl3d_draw_object(objects[i]);
-    }
 }
 
 // sorting:
@@ -271,6 +224,150 @@ void gl3d_sort_objects(obj Objects[], int low, int high)
         int pivot = quicksort_partition(Objects, low, high);
         gl3d_sort_objects(Objects, low, pivot - 1);
         gl3d_sort_objects(Objects, pivot + 1, high);
+    }
+}
+
+//=============================================
+
+static float find_central_z_drawable(drawable d, obj o)
+{
+    Vec3 *vertices = o.vertices;
+    if (d.type == DRAWABLE_EDGE)
+    {
+        edge *e = (edge *)d.item;
+
+        int i = transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(vertices[(*e).i], o.scale), o.translation)).z;
+        int j = transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(vertices[(*e).j], o.scale), o.translation)).z;
+
+        d.average_z = (i + j) / 2;
+        // return (i + j) / 2;
+        return i < j ? i : j;
+    }
+    else if (d.type == DRAWABLE_FACE)
+    {
+        face *f = (face *)d.item;
+
+        int a = transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(vertices[(*f).a], o.scale), o.translation)).z;
+        int b = transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(vertices[(*f).b], o.scale), o.translation)).z;
+        int c = transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(vertices[(*f).c], o.scale), o.translation)).z;
+
+        d.average_z = (a + b + c) / 3;
+        // return (a + b + c) / 3;
+        return a < b && a < c ? a : b < c ? b
+                                          : c;
+    }
+    else
+    {
+        return *((int *)d.item);
+    }
+}
+
+static void swap_drawables(drawable *ob1, drawable *ob2)
+{
+    drawable temp;
+    temp = *ob1;
+    *ob1 = *ob2;
+    *ob2 = temp;
+}
+
+static int quicksort_partition_drawable(drawable items[], int low, int high, obj o)
+{
+    float pivot = find_central_z_drawable(items[high], o); // Pivot
+    int i = (low - 1);                                     // Index of smaller element
+
+    for (int j = low; j <= high - 1; j++)
+    {
+        // If current element is smaller than or equal to pivot
+        if (find_central_z_drawable(items[j], o) <= pivot)
+        {
+            i++; // Increment index of smaller element
+            swap_drawables(&items[i], &items[j]);
+        }
+    }
+    swap_drawables(&items[i + 1], &items[high]);
+    return (i + 1);
+}
+
+static void gl3d_sort_drawables(drawable Objects[], int low, int high, obj o)
+{
+    if (low < high)
+    {
+        int pivot = quicksort_partition_drawable(Objects, low, high, o);
+        gl3d_sort_drawables(Objects, low, pivot - 1, o);
+        gl3d_sort_drawables(Objects, pivot + 1, high, o);
+    }
+}
+
+static void generate_drawing_queue(obj Object, drawable drawing_queue[])
+{
+    // FACES
+    for (int i = 0; i < Object.num_faces; i++)
+    {
+        drawable item;
+        item.type = DRAWABLE_FACE;
+        item.item = &(Object.faces[i]);
+        drawing_queue[i] = item;
+    }
+
+    // EDGES
+    for (int i = 0; i < Object.num_edges; i++)
+    {
+        drawable item;
+        item.type = DRAWABLE_EDGE;
+        item.item = &(Object.edges[i]);
+        drawing_queue[i + Object.num_faces] = item;
+    }
+}
+
+void gl3d_draw_object(obj Object)
+{
+    drawable render_queue[Object.num_faces + Object.num_edges];
+
+    generate_drawing_queue(Object, render_queue);
+
+    int num_vertices = Object.num_vertices;
+    Vec2 projected_points[num_vertices];
+
+    gl3d_sort_drawables(render_queue, 0, Object.num_edges + Object.num_faces - 1, Object);
+
+    // VERTICES
+    for (int i = 0; i < num_vertices; i++)
+    {
+        Vec2 screen_point = calculate_point(vec3_add(vec3_multi_scalar(Object.vertices[i], Object.scale), Object.translation));
+        projected_points[i] = screen_point;
+        // gl_draw_pixel(screen_point.x, screen_point.y, Object.color);
+        // gl_draw_char(screen_point.x, screen_point.y, '0' + i, GL_BLACK);
+    }
+
+    for (int i = 0; i < Object.num_edges + Object.num_faces; i++)
+    {
+        drawable d = render_queue[i];
+        if (d.type == DRAWABLE_EDGE)
+        {
+            edge *e = (edge *)d.item;
+            Vec2 screen_point_1 = projected_points[(*e).i];
+            Vec2 screen_point_2 = projected_points[(*e).j];
+            if (!outOfBounds(screen_point_1) || !outOfBounds(screen_point_2))
+                gl_draw_line(screen_point_1.x, screen_point_1.y, screen_point_2.x, screen_point_2.y, GL_BLACK);
+        }
+        else if (d.type == DRAWABLE_FACE)
+        {
+            face *f = (face *)d.item;
+            Vec2 face_points[3];
+            face_points[0] = projected_points[(*f).a];
+            face_points[1] = projected_points[(*f).b];
+            face_points[2] = projected_points[(*f).c];
+            gl3d_draw_face(face_points, 3, Object.color);
+        }
+    }
+}
+
+void gl3d_draw_objects(obj objects[], int num_objects)
+{
+    gl3d_sort_objects(objects, 0, num_objects - 1);
+    for (int i = 0; i < num_objects; i++)
+    {
+        gl3d_draw_object(objects[i]);
     }
 }
 
