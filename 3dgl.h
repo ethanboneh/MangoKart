@@ -43,6 +43,7 @@ typedef struct
 typedef struct
 {
     int a, b, c;
+    int flipped;
 } face;
 
 typedef enum
@@ -85,8 +86,9 @@ typedef struct
  * @param screenH: the height of the screen
  * @param eye: the initial position of the camera
  * @param center: the initial position the camera is looking at
+ * @param lighting: the initial position of the light source
  */
-void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center);
+void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center, Vec3 lighting);
 
 void gl3d_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c);
 
@@ -155,6 +157,13 @@ void gl3d_draw_axes(float length);
  * @param center: the position to look at
  */
 void gl3d_move_camera(Vec3 eye, Vec3 center);
+
+/*
+ * Adjust the lighting of the scene
+ *
+ * @param lighting: the lighting to adjust
+ */
+void gl3d_adjust_lighting(Vec3 lighting);
 
 /*
  * Draw all the objects in `objects` in the correct order

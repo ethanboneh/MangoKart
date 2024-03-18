@@ -64,13 +64,14 @@ void test_cubes()
     // Example setup
     Vec3 eye = {450.0, 150.0, 500.0};
     Vec3 center = {0.0, 0.0, 0.0};
+    Vec3 lighting = {100.0, 100.0, 100.0};
 
     int frame_delay = 0;  // ms
     int load_time = 5000; // ms
 
     gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
 
-    gl3d_init(WIDTH, HEIGHT, eye, center);
+    gl3d_init(WIDTH, HEIGHT, eye, center, lighting);
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
     gl_draw_string(280, 280, "Loading cubes...", GL_WHITE);
@@ -101,12 +102,14 @@ void test_cubes_camera_movement()
     Vec3 eye = {450.0, 150.0, 500.0};
     Vec3 center = {0.0, 0.0, 0.0};
 
+    Vec3 lighting = {100.0, 100.0, 100.0};
+
     int frame_delay = 0;  // ms
     int load_time = 5000; // ms
 
     gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
 
-    gl3d_init(WIDTH, HEIGHT, eye, center);
+    gl3d_init(WIDTH, HEIGHT, eye, center, lighting);
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
     gl_draw_string(240, 280, "Loading camera movement...", GL_WHITE);
@@ -142,13 +145,14 @@ void test_draw_object()
 
     Vec3 eye = {350.0, 150.0, 300.0};
     Vec3 center = {0.0, 0.0, 0.0};
+    Vec3 lighting = {-100.0, 200.0, -300.0};
 
     int frame_delay = 0;  // ms
     int load_time = 5000; // ms
 
     gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
 
-    gl3d_init(WIDTH, HEIGHT, eye, center);
+    gl3d_init(WIDTH, HEIGHT, eye, center, lighting);
 
     int lastFrameTime = 10;
 
@@ -172,8 +176,8 @@ void test_draw_object()
     };
 
     face faces[] = {
-        (face){2, 1, 5},
-        (face){0, 1, 5},
+        (face){2, 1, 5, 0},
+        (face){0, 1, 5, 0},
     };
 
     edge cube_edges[] = {
@@ -192,16 +196,18 @@ void test_draw_object()
     };
 
     face cube_faces[] = {
-        (face){2, 1, 5},
-        (face){2, 6, 5},
-        (face){0, 1, 5},
-        (face){0, 4, 5},
-        (face){6, 4, 5},
-        (face){6, 4, 7},
-        (face){0, 7, 4},
-        (face){0, 7, 3},
-        (face){0, 2, 1},
-        (face){0, 2, 3},
+        (face){2, 1, 5, 0},
+        (face){2, 6, 5, 1},
+
+        (face){6, 4, 5, 0},
+        (face){6, 4, 7, 1},
+        (face){0, 7, 4, 0},
+        (face){0, 7, 3, 1},
+        // (face){0, 2, 1, 0},
+        // (face){0, 2, 3, 1},
+
+        (face){6, 3, 7, 0},
+        (face){2, 3, 6, 0},
     };
 
     Vec3 translation = (Vec3){200, 0, -50};
@@ -225,7 +231,7 @@ void test_draw_object()
     obj object3 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation3, scale3, GL_CYAN);
     obj object4 = gl3d_create_object(vertices, cube_edges, cube_faces, num_vertices, num_cube_edges, num_cube_faces, translation4, scale, GL_RED);
 
-    obj objects[] = {object4, object3, object2, object1};
+    obj objects[] = {object1, object2, object3, object4};
 
     int num_objects = sizeof(objects) / sizeof(obj);
 
@@ -237,13 +243,13 @@ void test_draw_object()
 
     gl_swap_buffer();
 
-    for (int i = 0; i < 200; i++)
+    for (int i = 0; i < 70; i++)
     {
         int startTime = timer_get_ticks();
         int fps = 1000000 / lastFrameTime;
         printf("FPS: %d\n", fps);
         gl3d_clear(GL_WHITE);
-        gl3d_move_camera((Vec3){3000.0 - (30 * i), 150.0 + (6 * i), 500.0 + (6 * i)}, center);
+        gl3d_move_camera((Vec3){3000.0 - (50 * i), 150.0 + (10 * i), 500.0 + (10 * i)}, center);
 
         gl3d_draw_axes(50);
         gl3d_draw_objects(objects, num_objects);

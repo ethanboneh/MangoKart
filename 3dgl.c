@@ -9,9 +9,12 @@ static struct
 {
     float screenW;
     float screenH;
+
     Vec3 eye;
     Vec3 center;
     Vec3 up;
+
+    Vec3 lighting;
 
     obj Objects[10];
 
@@ -64,10 +67,25 @@ static Vec3 vec3_cross(Vec3 a, Vec3 b)
         a.x * b.y - a.y * b.x};
 }
 
+static float vec3_dot(Vec3 a, Vec3 b)
+{
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
 static Vec3 vec3_normalize(Vec3 v)
 {
     float len = sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     return (Vec3){v.x / len, v.y / len, v.z / len};
+}
+
+static Vec3 vec3_plane_normal(Vec3 p, Vec3 q, Vec3 r)
+{
+    Vec3 a = vec3_sub(q, p);
+    Vec3 b = vec3_sub(r, p);
+
+    Vec3 normal = vec3_cross(a, b);
+
+    return vec3_normalize(normal);
 }
 
 static void generate_look_at_matrix(Vec3 eye, Vec3 center, Vec3 up, float *matrix)
@@ -166,17 +184,9 @@ obj gl3d_create_object(Vec3 vertices[], edge edges[], face faces[], int num_vert
     return object1;
 }
 
-void gl3d_draw_face(Vec2 twoPts[], int numPts, color_t color)
+void gl3d_draw_face(Vec2 a, Vec2 b, Vec2 c, color_t color)
 {
-    Vec2 mainPoint = twoPts[0];
-    Vec2 cache = twoPts[1];
-
-    for (int i = 2; i < numPts; i++)
-    {
-        Vec2 thirdPoint = twoPts[i];
-        gl3d_draw_triangle(mainPoint.x, mainPoint.y, cache.x, cache.y, thirdPoint.x, thirdPoint.y, color);
-        cache = thirdPoint;
-    }
+    gl3d_draw_triangle(a.x, a.y, b.x, b.y, c.x, c.y, color);
 }
 
 static float find_central_z(obj o)
@@ -319,6 +329,56 @@ static void generate_drawing_queue(obj Object, drawable drawing_queue[])
     }
 }
 
+static color_t adjust_color(color_t original_color, float factor)
+{
+    int r = (original_color >> 16) & 0xFF;
+    int g = (original_color >> 8) & 0xFF;
+    int b = original_color & 0xFF;
+
+    factor = (factor < -1.0) ? -1.0 : (factor > 1.0) ? 1.0
+                                                     : factor;
+
+    factor /= 2.0; // Factor is now in the range [-0.5, 0.5]
+
+    if (factor > 0)
+    {
+        // Mix towards white
+        r += (255.0 - r) * factor;
+        g += (255.0 - g) * factor;
+        b += (255.0 - b) * factor;
+    }
+    else
+    {
+        // Mix towards black
+        r += r * factor; // factor is negative, so this reduces the color component
+        g += g * factor;
+        b += b * factor;
+    }
+
+    return gl_color(r, g, b);
+}
+
+static color_t calculate_lighting(Vec3 a, Vec3 b, Vec3 c, color_t original_color, int flipped)
+{
+    if (flipped)
+    {
+        Vec3 temp = a;
+        a = c;
+        c = temp;
+    }
+    Vec3 normal = vec3_normalize(vec3_plane_normal(a, b, c));
+    Vec3 light = vec3_normalize(module.lighting);
+
+    float light_intensity = vec3_dot(normal, light);
+    // printf("Point: {%d, %d, %d} {%d, %d, %d} {%d, %d, %d}", (int)a.x, (int)a.y, (int)a.z, (int)b.x, (int)b.y, (int)b.z, (int)c.x, (int)c.y, (int)c.z);
+    // printf("Normal: {%d, %d, %d} Light: {%d, %d, %d}\n", (int)normal.x, (int)normal.y, (int)normal.z, (int)(light.x * 1000), (int)(light.y * 1000), (int)(light.z * 1000));
+    // printf("Light Intensity: %d\n", (int)(light_intensity * 1000));
+
+    color_t shaded_color = adjust_color(original_color, light_intensity);
+
+    return shaded_color;
+}
+
 void gl3d_draw_object(obj Object)
 {
     drawable render_queue[Object.num_faces + Object.num_edges];
@@ -353,11 +413,17 @@ void gl3d_draw_object(obj Object)
         else if (d.type == DRAWABLE_FACE)
         {
             face *f = (face *)d.item;
-            Vec2 face_points[3];
-            face_points[0] = projected_points[(*f).a];
-            face_points[1] = projected_points[(*f).b];
-            face_points[2] = projected_points[(*f).c];
-            gl3d_draw_face(face_points, 3, Object.color);
+
+            Vec3 a = Object.vertices[(*f).a];
+            Vec3 b = Object.vertices[(*f).b];
+            Vec3 c = Object.vertices[(*f).c];
+
+            color_t color = calculate_lighting(a, b, c, Object.color, (*f).flipped);
+
+            Vec2 a_projected = projected_points[(*f).a];
+            Vec2 b_projected = projected_points[(*f).b];
+            Vec2 c_projected = projected_points[(*f).c];
+            gl3d_draw_face(a_projected, b_projected, c_projected, color);
         }
     }
 }
@@ -373,10 +439,12 @@ void gl3d_draw_objects(obj objects[], int num_objects)
 
 /* =============== EXTERNAL DRAWING METHODS START HERE ======================== */
 
-void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)
+void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center, Vec3 lighting)
 {
     module.screenW = screenW;
     module.screenH = screenH;
+
+    module.lighting = lighting;
 
     module.eye = eye;
     module.center = center;
@@ -396,6 +464,11 @@ void gl3d_move_camera(Vec3 eye, Vec3 center)
     module.center = center;
 
     generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
+}
+
+void gl3d_adjust_lighting(Vec3 lighting)
+{
+    module.lighting = lighting;
 }
 
 void gl3d_draw_cube(Vec3 center, float width, color_t c)
