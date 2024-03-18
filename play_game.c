@@ -1,7 +1,17 @@
-#include "uart.h"
+#include "assert.h"
+#include "console.h"
+#include "fb.h"
+#include "gl.h"
 #include "3dgl.h"
 #include "printf.h"
-#include "assert.h"
+#include "strings.h"
+#include "timer.h"
+#include "uart.h"
+#include "accel_driver.h"
+#include "i2c.h"
+
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
 
 static void pause(const char *message)
 {
@@ -81,8 +91,109 @@ static void test_gl_polygons(void)
     pause("Now displaying WIDTH x HEIGHT, testing polygons");
 }
 
+void test_draw_object()
+{
+    const int WIDTH = SCREEN_WIDTH;
+    const int HEIGHT = SCREEN_HEIGHT;
+
+    Vec3 eye = {350.0, 150.0, 500.0};
+    Vec3 center = {1.0, 1.0, 50.0};
+
+    int frame_delay = 0;  // ms
+    int load_time = 5000; // ms
+
+    gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
+
+    gl3d_init(WIDTH, HEIGHT, eye, center);
+
+    int lastFrameTime = 10;
+
+    Vec3 vertices[] = {
+        (Vec3){50, 50, 50},
+        (Vec3){100, 50, 50},
+        (Vec3){100, 100, 50},
+        (Vec3){50, 100, 50},
+        (Vec3){50, 50, 100},
+        (Vec3){100, 50, 100},
+        (Vec3){100, 100, 100},
+        (Vec3){50, 100, 100},
+    };
+    edge edges[] = {
+        (edge){0, 5},
+        (edge){5, 1},
+        (edge){1, 0},
+        (edge){1, 2},
+        (edge){2, 5},
+        (edge){2, 0},
+    };
+
+    face faces[] = {
+        (face){2, 1, 5},
+        (face){0, 1, 5},
+    };
+
+    Vec3 translation = (Vec3){100, 0, 0};
+    float scale = 2;
+
+    int num_vertices = sizeof(vertices) / sizeof(Vec3);
+    int num_edges = sizeof(edges) / sizeof(edge);
+    int num_faces = sizeof(faces) / sizeof(face);
+
+    obj object1 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
+
+    gl_clear(gl_color(0x25, 0x59, 0x57));
+    gl_draw_string(320, 280, "Loading objects...", GL_WHITE);
+    gl_swap_buffer();
+
+int runningTotal = 0;
+int startTime = timer_get_ticks();
+
+    for (int i = 0; i < 500; i++)
+    {
+        
+        int fps = 1000000 / lastFrameTime;
+        // printf("FPS: %d\n", fps);
+        gl3d_clear(GL_WHITE);
+
+        short x_a, y_a, z_a; // Accelerometer data
+        short x_g, y_g, z_g;
+        mpu_read_accelerometer(&x_a, &y_a, &z_a, &x_g, &y_g, &z_g);
+
+        printf("Gyro X: X = %d\n", x_g);
+
+        lastFrameTime = ((timer_get_ticks() - startTime) / (100 * TICKS_PER_USEC));
+        gl3d_remote_camera(x_g, lastFrameTime);
+        gl3d_move_camera_forward();
+        
+        startTime = timer_get_ticks();
+        
+        // gl3d_move_camera_forward();
+        // gl3d_move_camera((Vec3){3000.0, 150.0, 500.0}, center);
+
+        gl3d_draw_axes(50);
+        gl3d_draw_object(object1);
+
+        gl_swap_buffer();
+
+        // printf("Frame Time: %d\n", lastFrameTime);
+        // pause("wait");
+    }
+
+    pause("drawn object... [CLICK ANY KEY TO CONTINUE]");
+}
+
 void main(void)
 {
     uart_init();
-    test_gl_polygons();
+    timer_init();
+
+    i2c_init();
+    mpu_init();
+
+    printf("WE ONNNN\n");
+
+
+    // test_gl_polygons();
+
+    test_draw_object();
 }

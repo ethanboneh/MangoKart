@@ -76,4 +76,8 @@ void gl3d_move_camera(Vec3 eye, Vec3 center);
 
 void gl3d_sort_objects(obj Objects[], int low, int high);
 
+void gl3d_remote_camera(short x_g, int time_interval);
+
+void gl3d_move_camera_forward();
+
 #endif

@@ -11,6 +11,8 @@
 #include "strings.h"
 #include "timer.h"
 #include "uart.h"
+#include "accel_driver.h"
+#include "i2c.h"
 
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
@@ -249,11 +251,31 @@ void main(void)
     uart_init();
     printf("Executing main() in test_gl_console.c\n");
 
+
+
+    short x_a, y_a, z_a; // Accelerometer data
+    short x_g, y_g, z_g; // Gyroscope data
+
+    i2c_init();
+    mpu_init();
+
+    while(1) {
+        mpu_read_accelerometer(&x_a, &y_a, &z_a, &x_g, &y_g, &z_g);
+        // printf("Accel: X=%d, Y=%d, Z=%d\n", x_a, y_a, z_a);
+        printf("Gyro X: X = %d\n", x_g/3000);
+        // printf("Gyro: X=%d, Y=%d, Z=%d\n", x_g/100, y_g/100, z_g/100);
+        // printf("%d \n", x_a);
+        // pause("observation");
+        timer_delay_ms(100);
+    }
+
+
+
     // test_cubes();
     // test_cubes_camera_movement();
-    test_draw_object();
+    // test_draw_object();
 
-    test_gl_polygons();
+    // test_gl_polygons();
 
     printf("Completed main() in test_gl_console.c\n");
 }
