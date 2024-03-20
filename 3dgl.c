@@ -5,17 +5,23 @@
 
 #define PI 3.141592653589793
 
+
+
 // dimensions necessary for projection/culling:
 
 static struct
 {
     float screenW;
     float screenH;
+
     Vec3 eye;
     Vec3 center;
     Vec3 up;
 
+    Vec3 lighting;
+
     obj Objects[10];
+    int numObjects;
 
     float viewMatrix[16];
 } module;
@@ -66,10 +72,25 @@ static Vec3 vec3_cross(Vec3 a, Vec3 b)
         a.x * b.y - a.y * b.x};
 }
 
+static float vec3_dot(Vec3 a, Vec3 b)
+{
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
 static Vec3 vec3_normalize(Vec3 v)
 {
     float len = sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     return (Vec3){v.x / len, v.y / len, v.z / len};
+}
+
+static Vec3 vec3_plane_normal(Vec3 p, Vec3 q, Vec3 r)
+{
+    Vec3 a = vec3_sub(q, p);
+    Vec3 b = vec3_sub(r, p);
+
+    Vec3 normal = vec3_cross(a, b);
+
+    return vec3_normalize(normal);
 }
 
 static void generate_look_at_matrix(Vec3 eye, Vec3 center, Vec3 up, float *matrix)
@@ -134,8 +155,9 @@ static Vec2 calculate_point(Vec3 point)
 
 static int numObj = 0;
 
+/* =============== MATH STARTS HERE ======================== */
 
-
+static float sin(float x);
 
 static float pow_int(float x, int n) {
   float a = 1;
@@ -155,7 +177,6 @@ static float pow_int(float x, int n) {
   return a;
 }
 
-static float sin(float x);
 float fabs(float x) { return (x > 0 ? x : -x); }
 
 static float cos(float x) {
@@ -274,108 +295,274 @@ obj gl3d_create_object(Vec3 vertices[], edge edges[], face faces[], int num_vert
 
     object1.color = color;
 
+    module.Objects[module.numObjects] = object1;
+    module.numObjects++;
+
     return object1;
 }
 
-void gl3d_draw_face(Vec2 twoPts[], int numPts, color_t color)
+void gl3d_draw_face(Vec2 a, Vec2 b, Vec2 c, color_t color)
 {
-    Vec2 mainPoint = twoPts[0];
-    Vec2 cache = twoPts[1];
+    gl3d_draw_triangle(a.x, a.y, b.x, b.y, c.x, c.y, color);
+}
 
-    for (int i = 2; i < numPts; i++)
+static float find_central_z(obj o)
+{
+    float netZ = 0;
+    for (int i = 0; i < o.num_vertices; i++)
     {
-        Vec2 thirdPoint = twoPts[i];
-        gl3d_draw_triangle(mainPoint.x, mainPoint.y, cache.x, cache.y, thirdPoint.x, thirdPoint.y, color);
-        cache = thirdPoint;
+        netZ += transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(o.vertices[i], o.scale), o.translation)).z;
+    }
+    return netZ / o.num_vertices;
+}
+
+// sorting:
+
+static void swap_objects(obj *ob1, obj *ob2)
+{
+    obj temp;
+    temp = *ob1;
+    *ob1 = *ob2;
+    *ob2 = temp;
+}
+
+static int quicksort_partition(obj Objects[], int low, int high)
+{
+    float pivot = find_central_z(Objects[high]); // Pivot
+    int i = (low - 1);                           // Index of smaller element
+
+    for (int j = low; j <= high - 1; j++)
+    {
+        // If current element is smaller than or equal to pivot
+        if (find_central_z(Objects[j]) <= pivot)
+        {
+            i++; // Increment index of smaller element
+            swap_objects(&Objects[i], &Objects[j]);
+        }
+    }
+    swap_objects(&Objects[i + 1], &Objects[high]);
+    return (i + 1);
+}
+
+void gl3d_sort_objects(obj Objects[], int low, int high)
+{
+    if (low < high)
+    {
+        int pivot = quicksort_partition(Objects, low, high);
+        gl3d_sort_objects(Objects, low, pivot - 1);
+        gl3d_sort_objects(Objects, pivot + 1, high);
     }
 }
 
-// projects, culls, then draws face
+
+//=============================================
+
+static float find_central_z_drawable(drawable d, obj o)
+{
+    Vec3 *vertices = o.vertices;
+    if (d.type == DRAWABLE_EDGE)
+    {
+        edge *e = (edge *)d.item;
+
+        int i = transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(vertices[(*e).i], o.scale), o.translation)).z;
+        int j = transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(vertices[(*e).j], o.scale), o.translation)).z;
+
+        d.average_z = (i + j) / 2;
+        // return (i + j) / 2;
+        return i < j ? i : j;
+    }
+    else if (d.type == DRAWABLE_FACE)
+    {
+        face *f = (face *)d.item;
+
+        int a = transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(vertices[(*f).a], o.scale), o.translation)).z;
+        int b = transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(vertices[(*f).b], o.scale), o.translation)).z;
+        int c = transform_point(module.viewMatrix, vec3_add(vec3_multi_scalar(vertices[(*f).c], o.scale), o.translation)).z;
+
+        d.average_z = (a + b + c) / 3;
+        // return (a + b + c) / 3;
+        return a < b && a < c ? a : b < c ? b
+                                          : c;
+    }
+    else
+    {
+        return *((int *)d.item);
+    }
+}
+
+static void swap_drawables(drawable *ob1, drawable *ob2)
+{
+    drawable temp;
+    temp = *ob1;
+    *ob1 = *ob2;
+    *ob2 = temp;
+}
+
+static int quicksort_partition_drawable(drawable items[], int low, int high, obj o)
+{
+    float pivot = find_central_z_drawable(items[high], o); // Pivot
+    int i = (low - 1);                                     // Index of smaller element
+
+    for (int j = low; j <= high - 1; j++)
+    {
+        // If current element is smaller than or equal to pivot
+        if (find_central_z_drawable(items[j], o) <= pivot)
+        {
+            i++; // Increment index of smaller element
+            swap_drawables(&items[i], &items[j]);
+        }
+    }
+    swap_drawables(&items[i + 1], &items[high]);
+    return (i + 1);
+}
+
+static void gl3d_sort_drawables(drawable Objects[], int low, int high, obj o)
+{
+    if (low < high)
+    {
+        int pivot = quicksort_partition_drawable(Objects, low, high, o);
+        gl3d_sort_drawables(Objects, low, pivot - 1, o);
+        gl3d_sort_drawables(Objects, pivot + 1, high, o);
+    }
+}
+
+static void generate_drawing_queue(obj Object, drawable drawing_queue[])
+{
+    // FACES
+    for (int i = 0; i < Object.num_faces; i++)
+    {
+        drawable item;
+        item.type = DRAWABLE_FACE;
+        item.item = &(Object.faces[i]);
+        drawing_queue[i] = item;
+    }
+
+    // EDGES
+    for (int i = 0; i < Object.num_edges; i++)
+    {
+        drawable item;
+        item.type = DRAWABLE_EDGE;
+        item.item = &(Object.edges[i]);
+        drawing_queue[i + Object.num_faces] = item;
+    }
+}
+
+static color_t adjust_color(color_t original_color, float factor)
+{
+    int r = (original_color >> 16) & 0xFF;
+    int g = (original_color >> 8) & 0xFF;
+    int b = original_color & 0xFF;
+
+    factor = (factor < -1.0) ? -1.0 : (factor > 1.0) ? 1.0
+                                                     : factor;
+
+    factor /= 2.0; // Factor is now in the range [-0.5, 0.5]
+
+    if (factor > 0)
+    {
+        // Mix towards white
+        r += (255.0 - r) * factor;
+        g += (255.0 - g) * factor;
+        b += (255.0 - b) * factor;
+    }
+    else
+    {
+        // Mix towards black
+        r += r * factor; // factor is negative, so this reduces the color component
+        g += g * factor;
+        b += b * factor;
+    }
+
+    return gl_color(r, g, b);
+}
+
+static color_t calculate_lighting(Vec3 a, Vec3 b, Vec3 c, color_t original_color, int flipped)
+{
+    if (flipped)
+    {
+        Vec3 temp = a;
+        a = c;
+        c = temp;
+    }
+    Vec3 normal = vec3_normalize(vec3_plane_normal(a, b, c));
+    Vec3 light = vec3_normalize(module.lighting);
+
+    float light_intensity = vec3_dot(normal, light);
+    // printf("Point: {%d, %d, %d} {%d, %d, %d} {%d, %d, %d}", (int)a.x, (int)a.y, (int)a.z, (int)b.x, (int)b.y, (int)b.z, (int)c.x, (int)c.y, (int)c.z);
+    // printf("Normal: {%d, %d, %d} Light: {%d, %d, %d}\n", (int)normal.x, (int)normal.y, (int)normal.z, (int)(light.x * 1000), (int)(light.y * 1000), (int)(light.z * 1000));
+    // printf("Light Intensity: %d\n", (int)(light_intensity * 1000));
+
+    color_t shaded_color = adjust_color(original_color, light_intensity);
+
+    return shaded_color;
+}
+
 void gl3d_draw_object(obj Object)
 {
+    drawable render_queue[Object.num_faces + Object.num_edges];
+
+    generate_drawing_queue(Object, render_queue);
+
     int num_vertices = Object.num_vertices;
     Vec2 projected_points[num_vertices];
 
+    gl3d_sort_drawables(render_queue, 0, Object.num_edges + Object.num_faces - 1, Object);
+
+    // VERTICES
     for (int i = 0; i < num_vertices; i++)
     {
         Vec2 screen_point = calculate_point(vec3_add(vec3_multi_scalar(Object.vertices[i], Object.scale), Object.translation));
         projected_points[i] = screen_point;
-        if (!outOfBounds(screen_point))
+        // gl_draw_pixel(screen_point.x, screen_point.y, Object.color);
+        // gl_draw_char(screen_point.x, screen_point.y, '0' + i, GL_BLACK);
+    }
+
+    for (int i = 0; i < Object.num_edges + Object.num_faces; i++)
+    {
+        drawable d = render_queue[i];
+        if (d.type == DRAWABLE_EDGE)
         {
-            gl_draw_pixel(screen_point.x, screen_point.y, Object.color);
-            // gl_draw_char(screen_point.x, screen_point.y, '0' + i, GL_BLACK); // for debugging
+            edge *e = (edge *)d.item;
+            Vec2 screen_point_1 = projected_points[(*e).i];
+            Vec2 screen_point_2 = projected_points[(*e).j];
+            if (!outOfBounds(screen_point_1) || !outOfBounds(screen_point_2))
+                gl_draw_line(screen_point_1.x, screen_point_1.y, screen_point_2.x, screen_point_2.y, GL_BLACK);
+        }
+        else if (d.type == DRAWABLE_FACE)
+        {
+            face *f = (face *)d.item;
+
+            Vec3 a = Object.vertices[(*f).a];
+            Vec3 b = Object.vertices[(*f).b];
+            Vec3 c = Object.vertices[(*f).c];
+
+            color_t color = calculate_lighting(a, b, c, Object.color, (*f).flipped);
+
+            Vec2 a_projected = projected_points[(*f).a];
+            Vec2 b_projected = projected_points[(*f).b];
+            Vec2 c_projected = projected_points[(*f).c];
+            gl3d_draw_face(a_projected, b_projected, c_projected, color);
         }
     }
+}
 
-    for (int i = 0; i < Object.num_faces; i++)
+void gl3d_draw_objects(obj objects[], int num_objects)
+{
+    gl3d_sort_objects(objects, 0, num_objects - 1);
+    for (int i = 0; i < num_objects; i++)
     {
-        Vec2 face_points[3];
-        face_points[0] = projected_points[Object.faces[i].a];
-        face_points[1] = projected_points[Object.faces[i].b];
-        face_points[2] = projected_points[Object.faces[i].c];
-        gl3d_draw_face(face_points, 3, Object.color);
-    }
-
-    for (int i = 0; i < Object.num_edges; i++)
-    {
-        Vec2 screen_point_1 = projected_points[Object.edges[i].i];
-        Vec2 screen_point_2 = projected_points[Object.edges[i].j];
-        if (!outOfBounds(screen_point_1) || !outOfBounds(screen_point_2))
-            gl_draw_line(screen_point_1.x, screen_point_1.y, screen_point_2.x, screen_point_2.y, GL_BLACK);
-    }
-}
-
-
-// sorting:
-
-static float find_central_z(obj Object) {
-    float netZ = 0;
-    for(int i = 0; i < Object.num_vertices; i++) {
-        netZ += Object.vertices[i].z;
-    }
-    return netZ / Object.num_vertices;
-}
-
-static void swap_objects(obj *Ob1, obj *Ob2) {
-    obj temp;
-    temp = *Ob1;
-    *Ob1 = *Ob2;
-    *Ob2 = temp;
-}
-
-
-static int quicksort_partition(obj Objects[], int low, int high) {
-    float pivot = find_central_z(Objects[low]);
-    int j = high;
-
-    for(int i = high; i > low; i--) {
-        if(find_central_z(Objects[i]) < pivot) {
-            swap_objects(&Objects[j], &Objects[i]);
-            j--;
-        }
-    }
-
-    swap_objects(&Objects[j], &Objects[low]);
-    return j;
-}
-
-
-void gl3d_sort_objects(obj Objects[], int low, int high) {
-    if(low < high) {
-        int pivot = quicksort_partition(Objects, low, high);
-
-        gl3d_sort_objects(Objects, pivot + 1, high);
-        gl3d_sort_objects(Objects, low, pivot - 1);
-
+        gl3d_draw_object(objects[i]);
     }
 }
 
 /* =============== EXTERNAL DRAWING METHODS START HERE ======================== */
 
-void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center)
+void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center, Vec3 lighting)
 {
     module.screenW = screenW;
     module.screenH = screenH;
+
+    module.lighting = lighting;
 
     module.eye = eye;
     module.center = center;
@@ -392,7 +579,7 @@ void gl3d_clear(color_t c)
 static int max_pos_rotation = 43000;
 static int max_neg_rotation = 53000;
 
-void gl3d_remote_camera(short x_g, int time_interval) {
+void gl3d_remote_rotate_camera(short x_g, int time_interval) {
     float displacement = x_g / 3000;
     
     float angle = (x_g > 0) ? (time_interval) * displacement / (max_pos_rotation) * (PI / 4) :
@@ -420,7 +607,40 @@ void gl3d_remote_camera(short x_g, int time_interval) {
     generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
 }
 
+/*
+static int gl3d_test_collision(Vec3 collision_vector) {
+    for(int i = 0; i < module.numObjects; i++) {
+        obj curr_object = module.Objects[i];
+        
+        int max_x = curr_object.vertices[0].x;
+        int max_z = curr_object.vertices[0].z;
+
+        int min_x = curr_object.vertices[0].x;
+        int min_z = curr_object.vertices[0].z;
+
+        for(int j = 1; j < curr_object.num_vertices; j++) {
+            min_x = (curr_object.vertices[j].x < min_x) ? curr_object.vertices[j].x : min_x;
+            min_z = (curr_object.vertices[j].z < min_z) ? curr_object.vertices[j].z : min_z;
+
+            max_x = (curr_object.vertices[j].x > max_x) ? curr_object.vertices[j].x : max_x;
+            max_z = (curr_object.vertices[j].z > max_z) ? curr_object.vertices[j].z : max_z;
+        }
+
+        if(collision_vector.x < max_x && collision_vector.x > min_x
+        && collision_vector.z < max_z && collision_vector.z > min_z) {
+            printf("helloooo\n");
+            return 1;
+        }
+    }
+
+    return 0;
+}*/
+
+
 void gl3d_move_camera_forward() {
+
+    if(gl_read_pixel(SCREEN_WIDTH/2, SCREEN_HEIGHT/2) != GL_BLACK) return;
+
     Vec3 new_vector;
     new_vector.x = module.center.x - module.eye.x;
     new_vector.z = module.center.z - module.eye.z;
@@ -428,7 +648,8 @@ void gl3d_move_camera_forward() {
 
     float theta = atan(new_vector.x/new_vector.z);
 
-    printf("%d, %d, %d\n", (int)(100 * theta), (int)(new_vector.x * 100), (int)(new_vector.z * 100));
+    printf("%d, %d, %d\n", (int)(module.center.x), (int)(module.center.y), (int)(module.center.z));
+    printf("%d, %d, %d\n", (int)(module.eye.x), (int)(module.eye.y), (int)(module.eye.z));
 
     module.eye.z -= cos(theta);
     module.eye.x -= sin(theta);
@@ -444,6 +665,11 @@ void gl3d_move_camera(Vec3 eye, Vec3 center)
     module.center = center;
 
     generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
+}
+
+void gl3d_adjust_lighting(Vec3 lighting)
+{
+    module.lighting = lighting;
 }
 
 void gl3d_draw_cube(Vec3 center, float width, color_t c)
