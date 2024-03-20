@@ -354,7 +354,6 @@ void gl3d_sort_objects(obj Objects[], int low, int high)
     }
 }
 
-
 //=============================================
 
 static float find_central_z_drawable(drawable d, obj o)

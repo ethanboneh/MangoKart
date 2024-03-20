@@ -66,13 +66,14 @@ void test_cubes()
     // Example setup
     Vec3 eye = {450.0, 150.0, 500.0};
     Vec3 center = {0.0, 0.0, 0.0};
+    Vec3 lighting = {100.0, 100.0, 100.0};
 
     int frame_delay = 0;  // ms
     int load_time = 5000; // ms
 
     gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
 
-    gl3d_init(WIDTH, HEIGHT, eye, center);
+    gl3d_init(WIDTH, HEIGHT, eye, center, lighting);
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
     gl_draw_string(280, 280, "Loading cubes...", GL_WHITE);
@@ -103,12 +104,14 @@ void test_cubes_camera_movement()
     Vec3 eye = {450.0, 150.0, 500.0};
     Vec3 center = {0.0, 0.0, 0.0};
 
+    Vec3 lighting = {100.0, 100.0, 100.0};
+
     int frame_delay = 0;  // ms
     int load_time = 5000; // ms
 
     gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
 
-    gl3d_init(WIDTH, HEIGHT, eye, center);
+    gl3d_init(WIDTH, HEIGHT, eye, center, lighting);
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
     gl_draw_string(240, 280, "Loading camera movement...", GL_WHITE);
@@ -144,13 +147,14 @@ void test_draw_object()
 
     Vec3 eye = {350.0, 150.0, 300.0};
     Vec3 center = {0.0, 0.0, 0.0};
+    Vec3 lighting = {-100.0, 200.0, -300.0};
 
     int frame_delay = 0;  // ms
     int load_time = 5000; // ms
 
     gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
 
-    gl3d_init(WIDTH, HEIGHT, eye, center);
+    gl3d_init(WIDTH, HEIGHT, eye, center, lighting);
 
     int lastFrameTime = 10;
 
@@ -174,70 +178,86 @@ void test_draw_object()
     };
 
     face faces[] = {
-        (face){2, 1, 5},
-        (face){0, 1, 5},
+        (face){2, 1, 5, 0},
+        (face){0, 1, 5, 0},
     };
 
-    Vec3 translation = (Vec3){100, 0, 0};
+    edge cube_edges[] = {
+        (edge){1, 5},
+        (edge){5, 4},
+        (edge){0, 4},
+        (edge){0, 1},
+        (edge){2, 6},
+        (edge){6, 7},
+        (edge){3, 7},
+        (edge){3, 2},
+        (edge){5, 6},
+        (edge){4, 7},
+        (edge){2, 1},
+        (edge){0, 3},
+    };
+
+    face cube_faces[] = {
+        (face){2, 1, 5, 0},
+        (face){2, 6, 5, 1},
+
+        (face){6, 4, 5, 0},
+        (face){6, 4, 7, 1},
+        (face){0, 7, 4, 0},
+        (face){0, 7, 3, 1},
+        // (face){0, 2, 1, 0},
+        // (face){0, 2, 3, 1},
+
+        (face){6, 3, 7, 0},
+        (face){2, 3, 6, 0},
+    };
+
+    Vec3 translation = (Vec3){200, 0, -50};
+    Vec3 translation2 = (Vec3){-100, 0, 0};
+    Vec3 translation3 = (Vec3){0, 0, 100};
+    Vec3 translation4 = (Vec3){-200, 0, 200};
+
     float scale = 2;
+    float scale2 = 1;
+    float scale3 = 3;
 
     int num_vertices = sizeof(vertices) / sizeof(Vec3);
     int num_edges = sizeof(edges) / sizeof(edge);
     int num_faces = sizeof(faces) / sizeof(face);
 
+    int num_cube_edges = sizeof(cube_edges) / sizeof(edge);
+    int num_cube_faces = sizeof(cube_faces) / sizeof(face);
+
     obj object1 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
+    obj object2 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation2, scale2, GL_MOSS);
+    obj object3 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation3, scale3, GL_CYAN);
+    obj object4 = gl3d_create_object(vertices, cube_edges, cube_faces, num_vertices, num_cube_edges, num_cube_faces, translation4, scale, GL_RED);
+
+    obj objects[] = {object1, object2, object3, object4};
+
+    int num_objects = sizeof(objects) / sizeof(obj);
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
     gl_draw_string(320, 280, "Loading objects...", GL_WHITE);
     gl_swap_buffer();
 
-    // testing sorting
-    Vec3 vertices2[] = {
-        (Vec3){0, 0, 0},
-        (Vec3){100, 0, 0},
-        (Vec3){100, 100, 0},
-        (Vec3){0, 100, 0},
-        (Vec3){0, 0, 50},
-        (Vec3){100, 0, 50},
-        (Vec3){100, 100, 50},
-        (Vec3){0, 100, 50},
-    };
-
-    Vec3 vertices3[] = {
-        (Vec3){0, 0, 0},
-        (Vec3){100, 0, 0},
-        (Vec3){100, 100, 0},
-        (Vec3){0, 100, 0},
-        (Vec3){0, 0, 25},
-        (Vec3){100, 0, 25},
-        (Vec3){100, 100, 25},
-        (Vec3){0, 100, 25},
-    };
-
-
-    obj object2 = gl3d_create_object(vertices2, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
-    obj object3 = gl3d_create_object(vertices3, edges, faces, num_vertices, num_edges, num_faces, translation, scale, GL_ORANGE);
-
-    obj Objects[] = {object3, object2, object1};
-    gl3d_sort_objects(Objects, 0, 2);
-
-    printf("\n%d", (int)Objects[0].vertices[5].z);
-    printf("\n%d", (int)Objects[1].vertices[5].z);
-
     timer_delay_ms(load_time);
 
-    for (int i = 0; i < 500; i++)
+    gl_swap_buffer();
+
+    for (int i = 0; i < 70; i++)
     {
         int startTime = timer_get_ticks();
         int fps = 1000000 / lastFrameTime;
         printf("FPS: %d\n", fps);
         gl3d_clear(GL_WHITE);
-        gl3d_move_camera((Vec3){3000.0 - (10 * i), 150.0 + (2 * i), 500.0 + (2 * i)}, center);
+        gl3d_move_camera((Vec3){3000.0 - (50 * i), 150.0 + (10 * i), 500.0 + (10 * i)}, center);
 
         gl3d_draw_axes(50);
-        gl3d_draw_object(object1);
+        gl3d_draw_objects(objects, num_objects);
 
         gl_swap_buffer();
+        // pause("Click to step forward!");
         lastFrameTime = ((timer_get_ticks() - startTime) / TICKS_PER_USEC);
     }
 
