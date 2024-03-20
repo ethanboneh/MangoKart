@@ -158,6 +158,10 @@ void gl3d_draw_axes(float length);
  */
 void gl3d_move_camera(Vec3 eye, Vec3 center);
 
+void gl3d_remote_rotate_camera(short x_g, int time_interval);
+
+void gl3d_move_camera_forward();
+
 /*
  * Adjust the lighting of the scene
  *
@@ -181,5 +185,7 @@ void gl3d_draw_objects(obj objects[], int num_objects);
  * @param high: the upper bound of the array
  */
 void gl3d_sort_objects(obj Objects[], int low, int high);
+
+
 
 #endif

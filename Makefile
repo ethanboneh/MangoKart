@@ -6,7 +6,7 @@
 RUN_PROGRAM = play_game.bin
 TEST_PROGRAM  = test_graphics.bin
 
-MY_MODULE_SOURCES = 3dgl.c # $(PROGRAM:.bin=.c) $(TEST_PROGRAM:.bin=.c) 
+MY_MODULE_SOURCES = 3dgl.c accel_driver.c i2c.c # $(PROGRAM:.bin=.c) $(TEST_PROGRAM:.bin=.c) 
 
 
 PROGRAMS      = $(RUN_PROGRAM) $(TEST_PROGRAM)

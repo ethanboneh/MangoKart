@@ -3,6 +3,10 @@
 #include "malloc.h"
 #include <gl.h>
 
+#define PI 3.141592653589793
+
+
+
 // dimensions necessary for projection/culling:
 
 static struct
@@ -17,6 +21,7 @@ static struct
     Vec3 lighting;
 
     obj Objects[10];
+    int numObjects;
 
     float viewMatrix[16];
 } module;
@@ -150,6 +155,115 @@ static Vec2 calculate_point(Vec3 point)
 
 static int numObj = 0;
 
+/* =============== MATH STARTS HERE ======================== */
+
+static float sin(float x);
+
+static float pow_int(float x, int n) {
+  float a = 1;
+  if (n < 0) {
+    x = 1 / x;
+    n = -n;
+  }
+
+  while (n > 0) {
+    if (n & 1) {
+      a = a * x;
+    }
+    x = x * x;
+    n = n / 2;
+  }
+
+  return a;
+}
+
+float fabs(float x) { return (x > 0 ? x : -x); }
+
+static float cos(float x) {
+  int sign = 1;
+  // cos(-a) = cos(a)
+  // a in [0, \infinity)
+  if (x < 0) {
+    x = -x;
+  }
+  // cos(a + 2k * PI) = cos(a)
+  // a in [0, 2 * PI]
+  if (x > 2 * PI) {
+    x -= (int)(x / 2 / PI) * 2 * PI;
+  }
+  // cos(PI + a) = -cos(a)
+  // a in [0, PI]
+  if (x > PI) {
+    x -= PI;
+    sign *= -1;
+  }
+  // cos(PI - a) = -cos(a)
+  // a in [0, PI / 2]
+  if (x > PI / 2) {
+    x = PI - x;
+    sign *= -1;
+  }
+  // sin(PI / 2 - a) = cos(a)
+  // a in [0, PI / 4]
+  if (x > PI / 4) {
+    return sign * sin(PI / 2 - x);
+  }
+  float approx = 1 - pow_int(x, 2) / 2 + pow_int(x, 4) / 24 -
+                 pow_int(x, 6) / 720 + pow_int(x, 8) / 40320 -
+                 pow_int(x, 10) / 3628800 + pow_int(x, 12) / 479001600 -
+                 pow_int(x, 14) / 87178291200;
+  return sign * approx;
+}
+
+static float sin(float x) {
+  int sign = 1;
+  // sin(-a) = -sin(a)
+  // a in [0, \infinity)
+  if (x < 0) {
+    x = -x;
+    sign *= -1;
+  }
+  // sin(a + 2k * PI) = sin(a)
+  // a in [0, 2 * PI]
+  if (x > 2 * PI) {
+    x -= (int)(x / 2 / PI) * 2 * PI;
+  }
+  // sin(PI + a) = -sin(a)
+  // a in [0, PI]
+  if (x > PI) {
+    x -= PI;
+    sign *= -1;
+  }
+  // sin(PI - a) = sin(a)
+  // a in [0, PI / 2]
+  if (x > PI / 2) {
+    x = PI - x;
+  }
+  // cos(PI / 2 - a) = sin(a)
+  // a in [0, PI / 4]
+  if (x > PI / 4) {
+    return sign * cos(PI / 2 - x);
+  }
+  float approx = x - pow_int(x, 3) / 6 + pow_int(x, 5) / 120 -
+                 pow_int(x, 7) / 5040 + pow_int(x, 9) / 362880 -
+                 pow_int(x, 11) / 39916800 + pow_int(x, 13) / 6227020800;
+  return sign * approx;
+}
+
+#define EPSILON 0.1
+static float atan(float x) {
+  float s = 1;
+  while (fabs(x) > EPSILON) {
+    x = (sqrt(1 + x * x) - 1) / x;
+    s *= 2;
+  }
+  float approx = x - pow_int(x, 3) / 3 + pow_int(x, 5) / 5 - pow_int(x, 7) / 7 +
+                 pow_int(x, 9) / 9 - pow_int(x, 11) / 11 + pow_int(x, 13) / 13 -
+                 pow_int(x, 15) / 15 + pow_int(x, 17) / 17 -
+                 pow_int(x, 19) / 19;
+  return s * approx;
+}
+
 /* =============== OBJECT-LEVEL METHODS START HERE ======================== */
 
 // initalize objects and add to the object buffer
@@ -180,6 +294,9 @@ obj gl3d_create_object(Vec3 vertices[], edge edges[], face faces[], int num_vert
     }
 
     object1.color = color;
+
+    module.Objects[module.numObjects] = object1;
+    module.numObjects++;
 
     return object1;
 }
@@ -457,6 +574,89 @@ void gl3d_clear(color_t c)
 {
     gl_clear(c);
 };
+
+static int max_pos_rotation = 43000;
+static int max_neg_rotation = 53000;
+
+void gl3d_remote_rotate_camera(short x_g, int time_interval) {
+    float displacement = x_g / 3000;
+    
+    float angle = (x_g > 0) ? (time_interval) * displacement / (max_pos_rotation) * (PI / 4) :
+                (time_interval) * displacement / (max_neg_rotation) * (PI / 4);
+    
+    // float magnitude = sqrt(module.center.x * module.center.x + module.center.z * module.center.z);
+    Vec3 new_vector;
+    new_vector.x = module.center.x - module.eye.x;
+    new_vector.z = module.center.z - module.eye.z;
+    new_vector.y = 0;
+
+
+    float temp = new_vector.x * cos(angle) + new_vector.z * sin(angle);
+    
+    // printf("%d, %d\n", (int)(module.center.x), (int)(module.center.z));
+
+    new_vector.z = - new_vector.x * sin(angle) + new_vector.z * cos(angle);
+    new_vector.x = temp;
+
+    module.center.x = module.eye.x + new_vector.x;
+    module.center.z = module.eye.z + new_vector.z;
+
+    // if(module.center.x > 0) {module.center.x -= 0.5;} else if (module.center.x < 0) {module.center.x += 0.5;}
+
+    generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
+}
+
+/*
+static int gl3d_test_collision(Vec3 collision_vector) {
+    for(int i = 0; i < module.numObjects; i++) {
+        obj curr_object = module.Objects[i];
+        
+        int max_x = curr_object.vertices[0].x;
+        int max_z = curr_object.vertices[0].z;
+
+        int min_x = curr_object.vertices[0].x;
+        int min_z = curr_object.vertices[0].z;
+
+        for(int j = 1; j < curr_object.num_vertices; j++) {
+            min_x = (curr_object.vertices[j].x < min_x) ? curr_object.vertices[j].x : min_x;
+            min_z = (curr_object.vertices[j].z < min_z) ? curr_object.vertices[j].z : min_z;
+
+            max_x = (curr_object.vertices[j].x > max_x) ? curr_object.vertices[j].x : max_x;
+            max_z = (curr_object.vertices[j].z > max_z) ? curr_object.vertices[j].z : max_z;
+        }
+
+        if(collision_vector.x < max_x && collision_vector.x > min_x
+        && collision_vector.z < max_z && collision_vector.z > min_z) {
+            printf("helloooo\n");
+            return 1;
+        }
+    }
+
+    return 0;
+}*/
+
+
+void gl3d_move_camera_forward() {
+
+    if(gl_read_pixel(SCREEN_WIDTH/2, SCREEN_HEIGHT/2) != GL_BLACK) return;
+
+    Vec3 new_vector;
+    new_vector.x = module.center.x - module.eye.x;
+    new_vector.z = module.center.z - module.eye.z;
+    new_vector.y = 0;
+
+    float theta = atan(new_vector.x/new_vector.z);
+
+    printf("%d, %d, %d\n", (int)(module.center.x), (int)(module.center.y), (int)(module.center.z));
+    printf("%d, %d, %d\n", (int)(module.eye.x), (int)(module.eye.y), (int)(module.eye.z));
+
+    module.eye.z -= cos(theta);
+    module.eye.x -= sin(theta);
+    module.center.z -= cos(theta);
+    module.center.x -= sin(theta);
+
+    generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
+}
 
 void gl3d_move_camera(Vec3 eye, Vec3 center)
 {
