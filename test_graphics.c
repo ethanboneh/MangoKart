@@ -244,14 +244,15 @@ void test_draw_object()
     timer_delay_ms(load_time);
 
     gl_swap_buffer();
+    int i = 0;
 
-    for (int i = 0; i < 70; i++)
+    while (1)
     {
         int startTime = timer_get_ticks();
         int fps = 1000000 / lastFrameTime;
         printf("FPS: %d\n", fps);
         gl3d_clear(GL_WHITE);
-        gl3d_move_camera((Vec3){3000.0 - (50 * i), 150.0 + (10 * i), 500.0 + (10 * i)}, center);
+        gl3d_move_camera((Vec3){3000.0 - (50 * i), 100.0 + (10 * i), 150.0 + (10 * i)}, center);
 
         gl3d_draw_axes(50);
         gl3d_draw_objects(objects, num_objects);
@@ -259,9 +260,34 @@ void test_draw_object()
         gl_swap_buffer();
         // pause("Click to step forward!");
         lastFrameTime = ((timer_get_ticks() - startTime) / TICKS_PER_USEC);
+        if (i == 200)
+        {
+            i = 0;
+        }
+        i++;
     }
 
     pause("drawn object... [CLICK ANY KEY TO CONTINUE]");
+}
+
+void test_accelerometer(void)
+{
+    short x_a, y_a, z_a; // Accelerometer data
+    short x_g, y_g, z_g; // Gyroscope data
+
+    i2c_init();
+    mpu_init();
+
+    while (1)
+    {
+        mpu_read_accelerometer(&x_a, &y_a, &z_a, &x_g, &y_g, &z_g);
+        // printf("Accel: X=%d, Y=%d, Z=%d\n", x_a, y_a, z_a);
+        printf("Gyro X: X = %d\n", x_g / 3000);
+        // printf("Gyro: X=%d, Y=%d, Z=%d\n", x_g/100, y_g/100, z_g/100);
+        // printf("%d \n", x_a);
+        // pause("observation");
+        timer_delay_ms(100);
+    }
 }
 
 void main(void)
@@ -271,29 +297,10 @@ void main(void)
     uart_init();
     printf("Executing main() in test_gl_console.c\n");
 
-
-
-    short x_a, y_a, z_a; // Accelerometer data
-    short x_g, y_g, z_g; // Gyroscope data
-
-    i2c_init();
-    mpu_init();
-
-    while(1) {
-        mpu_read_accelerometer(&x_a, &y_a, &z_a, &x_g, &y_g, &z_g);
-        // printf("Accel: X=%d, Y=%d, Z=%d\n", x_a, y_a, z_a);
-        printf("Gyro X: X = %d\n", x_g/3000);
-        // printf("Gyro: X=%d, Y=%d, Z=%d\n", x_g/100, y_g/100, z_g/100);
-        // printf("%d \n", x_a);
-        // pause("observation");
-        timer_delay_ms(100);
-    }
-
-
-
     // test_cubes();
     // test_cubes_camera_movement();
-    // test_draw_object();
+    test_draw_object();
+    // test_accelerometer();
 
     // test_gl_polygons();
 

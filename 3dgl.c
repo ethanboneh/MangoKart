@@ -5,8 +5,6 @@
 
 #define PI 3.141592653589793
 
-
-
 // dimensions necessary for projection/culling:
 
 static struct
@@ -20,9 +18,12 @@ static struct
 
     Vec3 lighting;
 
+    float fov;
+
     obj Objects[10];
     int numObjects;
 
+    float projectionMatrix[16];
     float viewMatrix[16];
 } module;
 
@@ -47,6 +48,135 @@ static double sqrt(double x)
     }
     return s * res;
 }
+
+/* =============== MATH STARTS HERE ======================== */
+
+float fabs(float x) { return (x > 0 ? x : -x); }
+
+static float sin(float x);
+
+static float pow_int(float x, int n)
+{
+    float a = 1;
+    if (n < 0)
+    {
+        x = 1 / x;
+        n = -n;
+    }
+
+    while (n > 0)
+    {
+        if (n & 1)
+        {
+            a = a * x;
+        }
+        x = x * x;
+        n = n / 2;
+    }
+
+    return a;
+}
+
+static float cos(float x)
+{
+    int sign = 1;
+    // cos(-a) = cos(a)
+    // a in [0, \infinity)
+    if (x < 0)
+    {
+        x = -x;
+    }
+    // cos(a + 2k * PI) = cos(a)
+    // a in [0, 2 * PI]
+    if (x > 2 * PI)
+    {
+        x -= (int)(x / 2 / PI) * 2 * PI;
+    }
+    // cos(PI + a) = -cos(a)
+    // a in [0, PI]
+    if (x > PI)
+    {
+        x -= PI;
+        sign *= -1;
+    }
+    // cos(PI - a) = -cos(a)
+    // a in [0, PI / 2]
+    if (x > PI / 2)
+    {
+        x = PI - x;
+        sign *= -1;
+    }
+    // sin(PI / 2 - a) = cos(a)
+    // a in [0, PI / 4]
+    if (x > PI / 4)
+    {
+        return sign * sin(PI / 2 - x);
+    }
+    float approx = 1 - pow_int(x, 2) / 2 + pow_int(x, 4) / 24 -
+                   pow_int(x, 6) / 720 + pow_int(x, 8) / 40320 -
+                   pow_int(x, 10) / 3628800 + pow_int(x, 12) / 479001600 -
+                   pow_int(x, 14) / 87178291200;
+    return sign * approx;
+}
+
+static float sin(float x)
+{
+    int sign = 1;
+    // sin(-a) = -sin(a)
+    // a in [0, \infinity)
+    if (x < 0)
+    {
+        x = -x;
+        sign *= -1;
+    }
+    // sin(a + 2k * PI) = sin(a)
+    // a in [0, 2 * PI]
+    if (x > 2 * PI)
+    {
+        x -= (int)(x / 2 / PI) * 2 * PI;
+    }
+    // sin(PI + a) = -sin(a)
+    // a in [0, PI]
+    if (x > PI)
+    {
+        x -= PI;
+        sign *= -1;
+    }
+    // sin(PI - a) = sin(a)
+    // a in [0, PI / 2]
+    if (x > PI / 2)
+    {
+        x = PI - x;
+    }
+    // cos(PI / 2 - a) = sin(a)
+    // a in [0, PI / 4]
+    if (x > PI / 4)
+    {
+        return sign * cos(PI / 2 - x);
+    }
+    float approx = x - pow_int(x, 3) / 6 + pow_int(x, 5) / 120 -
+                   pow_int(x, 7) / 5040 + pow_int(x, 9) / 362880 -
+                   pow_int(x, 11) / 39916800 + pow_int(x, 13) / 6227020800;
+    return sign * approx;
+}
+
+#define EPSILON 0.1
+static float atan(float x)
+{
+    float s = 1;
+    while (fabs(x) > EPSILON)
+    {
+        x = (sqrt(1 + x * x) - 1) / x;
+        s *= 2;
+    }
+    float approx = x - pow_int(x, 3) / 3 + pow_int(x, 5) / 5 - pow_int(x, 7) / 7 +
+                   pow_int(x, 9) / 9 - pow_int(x, 11) / 11 + pow_int(x, 13) / 13 -
+                   pow_int(x, 15) / 15 + pow_int(x, 17) / 17 -
+                   pow_int(x, 19) / 19;
+    return s * approx;
+}
+
+static float tan(float x) { return sin(x) / cos(x); }
 
 // Basic vector operations
 static Vec3 vec3_sub(Vec3 a, Vec3 b)
@@ -93,6 +223,11 @@ static Vec3 vec3_plane_normal(Vec3 p, Vec3 q, Vec3 r)
     return vec3_normalize(normal);
 }
 
+static void print_point(Vec3 point)
+{
+    printf("(%d, %d, %d)", (int)point.x, (int)point.y, (int)point.z);
+}
+
 static void generate_look_at_matrix(Vec3 eye, Vec3 center, Vec3 up, float *matrix)
 {
     Vec3 f = vec3_normalize(vec3_sub(center, eye));
@@ -116,6 +251,25 @@ static void generate_look_at_matrix(Vec3 eye, Vec3 center, Vec3 up, float *matri
     matrix[14] = (f.x * eye.x + f.y * eye.y + f.z * eye.z);
 }
 
+void generate_perspective_proj_matrix(float *projMatrix)
+{
+    float aspectRatio = module.screenW / module.screenH;
+    float nearClip = 1;
+    float farClip = 6000;
+
+    float fovYRadians = module.fov * (PI / 180.0); // Convert FOV from degrees to radians
+    float f = 1.0 / tan(fovYRadians / 2.0);        // Cotangent of half the FOV
+
+    for (int i = 0; i < 16; i++)
+        projMatrix[i] = 0; // Initialize matrix to 0
+
+    projMatrix[0] = f / aspectRatio;                                    // Scale the x coordinates
+    projMatrix[5] = f;                                                  // Scale the y coordinates
+    projMatrix[10] = (farClip + nearClip) / (nearClip - farClip);       // Remap z to [-1, 1]
+    projMatrix[11] = -1.0;                                              // Set the perspective divide
+    projMatrix[14] = (2.0 * farClip * nearClip) / (nearClip - farClip); // Translate z
+}
+
 static Vec3 transform_point(float *matrix, Vec3 point)
 {
     Vec3 result;
@@ -126,21 +280,42 @@ static Vec3 transform_point(float *matrix, Vec3 point)
 }
 
 // culling
-static int outOfBounds(Vec2 point)
+static int outOfBounds(Vec2 point, Vec3 originalPoint)
 {
-    return (point.x > module.screenW || point.x < 0 || point.y > module.screenH || point.y < 0);
+
+    Vec3 forwardVec = vec3_normalize(vec3_sub(module.center, module.eye));
+
+    if ((point.x > module.screenW || point.x < 0 || point.y > module.screenH || point.y < 0))
+        return 1;
+
+    if (vec3_dot(forwardVec, vec3_sub(originalPoint, module.eye)) < 0)
+    {
+        // print_point(originalPoint);
+        // printf("culled \n");
+        return 1;
+    }
+
+    return 0;
+}
+
+Vec3 interpolate(Vec3 start, Vec3 end, float t)
+{
+    Vec3 result;
+    result.x = start.x + t * (end.x - start.x);
+    result.y = start.y + t * (end.y - start.y);
+    result.z = start.z + t * (end.z - start.z);
+    return result;
 }
 
 static Vec2 project_point(Vec3 point)
 {
-    // Assuming the point is already in camera view space, apply perspective projection
     float x = point.x / point.z;
     float y = point.y / point.z;
 
     // Map x and y from [-nPlane, nPlane] to [0, screenW] and [0, screenH], respectively
     Vec2 newPoint;
     newPoint.x = (x + 1) * module.screenW * 0.5;
-    newPoint.y = (y + 1) * module.screenH * 0.5;
+    newPoint.y = (1 - y) * module.screenH * 0.5;
 
     return newPoint;
 }
@@ -148,121 +323,13 @@ static Vec2 project_point(Vec3 point)
 static Vec2 calculate_point(Vec3 point)
 {
     Vec3 viewPoint = transform_point(module.viewMatrix, point);
-    Vec2 screenPoint = project_point(viewPoint);
+    Vec3 perspectivePoint = transform_point(module.projectionMatrix, viewPoint);
+    Vec2 screenPoint = project_point(perspectivePoint);
 
     return screenPoint;
 }
 
 static int numObj = 0;
-
-/* =============== MATH STARTS HERE ======================== */
-
-static float sin(float x);
-
-static float pow_int(float x, int n) {
-  float a = 1;
-  if (n < 0) {
-    x = 1 / x;
-    n = -n;
-  }
-
-  while (n > 0) {
-    if (n & 1) {
-      a = a * x;
-    }
-    x = x * x;
-    n = n / 2;
-  }
-
-  return a;
-}
-
-float fabs(float x) { return (x > 0 ? x : -x); }
-
-static float cos(float x) {
-  int sign = 1;
-  // cos(-a) = cos(a)
-  // a in [0, \infinity)
-  if (x < 0) {
-    x = -x;
-  }
-  // cos(a + 2k * PI) = cos(a)
-  // a in [0, 2 * PI]
-  if (x > 2 * PI) {
-    x -= (int)(x / 2 / PI) * 2 * PI;
-  }
-  // cos(PI + a) = -cos(a)
-  // a in [0, PI]
-  if (x > PI) {
-    x -= PI;
-    sign *= -1;
-  }
-  // cos(PI - a) = -cos(a)
-  // a in [0, PI / 2]
-  if (x > PI / 2) {
-    x = PI - x;
-    sign *= -1;
-  }
-  // sin(PI / 2 - a) = cos(a)
-  // a in [0, PI / 4]
-  if (x > PI / 4) {
-    return sign * sin(PI / 2 - x);
-  }
-  float approx = 1 - pow_int(x, 2) / 2 + pow_int(x, 4) / 24 -
-                 pow_int(x, 6) / 720 + pow_int(x, 8) / 40320 -
-                 pow_int(x, 10) / 3628800 + pow_int(x, 12) / 479001600 -
-                 pow_int(x, 14) / 87178291200;
-  return sign * approx;
-}
-
-static float sin(float x) {
-  int sign = 1;
-  // sin(-a) = -sin(a)
-  // a in [0, \infinity)
-  if (x < 0) {
-    x = -x;
-    sign *= -1;
-  }
-  // sin(a + 2k * PI) = sin(a)
-  // a in [0, 2 * PI]
-  if (x > 2 * PI) {
-    x -= (int)(x / 2 / PI) * 2 * PI;
-  }
-  // sin(PI + a) = -sin(a)
-  // a in [0, PI]
-  if (x > PI) {
-    x -= PI;
-    sign *= -1;
-  }
-  // sin(PI - a) = sin(a)
-  // a in [0, PI / 2]
-  if (x > PI / 2) {
-    x = PI - x;
-  }
-  // cos(PI / 2 - a) = sin(a)
-  // a in [0, PI / 4]
-  if (x > PI / 4) {
-    return sign * cos(PI / 2 - x);
-  }
-  float approx = x - pow_int(x, 3) / 6 + pow_int(x, 5) / 120 -
-                 pow_int(x, 7) / 5040 + pow_int(x, 9) / 362880 -
-                 pow_int(x, 11) / 39916800 + pow_int(x, 13) / 6227020800;
-  return sign * approx;
-}
-
-#define EPSILON 0.1
-static float atan(float x) {
-  float s = 1;
-  while (fabs(x) > EPSILON) {
-    x = (sqrt(1 + x * x) - 1) / x;
-    s *= 2;
-  }
-  float approx = x - pow_int(x, 3) / 3 + pow_int(x, 5) / 5 - pow_int(x, 7) / 7 +
-                 pow_int(x, 9) / 9 - pow_int(x, 11) / 11 + pow_int(x, 13) / 13 -
-                 pow_int(x, 15) / 15 + pow_int(x, 17) / 17 -
-                 pow_int(x, 19) / 19;
-  return s * approx;
-}
 
 /* =============== OBJECT-LEVEL METHODS START HERE ======================== */
 
@@ -301,12 +368,312 @@ obj gl3d_create_object(Vec3 vertices[], edge edges[], face faces[], int num_vert
     return object1;
 }
 
-void gl3d_draw_face(Vec2 a, Vec2 b, Vec2 c, color_t color)
+static color_t adjust_color(color_t original_color, float factor)
 {
-    gl3d_draw_triangle(a.x, a.y, b.x, b.y, c.x, c.y, color);
+    int r = (original_color >> 16) & 0xFF;
+    int g = (original_color >> 8) & 0xFF;
+    int b = original_color & 0xFF;
+
+    factor = (factor < -1.0) ? -1.0 : (factor > 1.0) ? 1.0
+                                                     : factor;
+
+    factor /= 2.0; // Factor is now in the range [-0.5, 0.5]
+
+    if (factor > 0)
+    {
+        // Mix towards white
+        r += (255.0 - r) * factor;
+        g += (255.0 - g) * factor;
+        b += (255.0 - b) * factor;
+    }
+    else
+    {
+        // Mix towards black
+        r += r * factor; // factor is negative, so this reduces the color component
+        g += g * factor;
+        b += b * factor;
+    }
+
+    return gl_color(r, g, b);
 }
 
-static float find_central_z(obj o)
+static color_t calculate_lighting(Vec3 a, Vec3 b, Vec3 c, color_t original_color, int flipped)
+{
+    if (flipped)
+    {
+        Vec3 temp = a;
+        a = c;
+        c = temp;
+    }
+    Vec3 normal = vec3_normalize(vec3_plane_normal(a, b, c));
+    Vec3 light = vec3_normalize(module.lighting);
+
+    float light_intensity = vec3_dot(normal, light);
+    // printf("Point: {%d, %d, %d} {%d, %d, %d} {%d, %d, %d}", (int)a.x, (int)a.y, (int)a.z, (int)b.x, (int)b.y, (int)b.z, (int)c.x, (int)c.y, (int)c.z);
+    // printf("Normal: {%d, %d, %d} Light: {%d, %d, %d}\n", (int)normal.x, (int)normal.y, (int)normal.z, (int)(light.x * 1000), (int)(light.y * 1000), (int)(light.z * 1000));
+    // printf("Light Intensity: %d\n", (int)(light_intensity * 1000));
+
+    color_t shaded_color = adjust_color(original_color, light_intensity);
+
+    return shaded_color;
+}
+
+static int clip_triangle_against_near_plane(Vec3 *inVerts, Vec3 *outVerts, float nearClipZ)
+{
+    Vec3 tempVerts[4];
+    int inFrontCount = 0;
+    int behindCount = 0;
+
+    // Check each vertex against the near clipping plane
+    for (int i = 0; i < 3; ++i)
+    {
+        if (inVerts[i].z < nearClipZ)
+        {
+            // Vertex is in front of the near clipping plane
+            tempVerts[inFrontCount++] = inVerts[i];
+        }
+        else
+        {
+            // Vertex is behind or on the near clipping plane
+            tempVerts[3 - (++behindCount)] = inVerts[i];
+        }
+    }
+
+    if (inFrontCount == 0)
+    {
+        // All vertices are behind the near clipping plane; triangle is not visible
+        return 0;
+    }
+    else if (inFrontCount == 3)
+    {
+        // All vertices are in front of the near clipping plane; no clipping needed
+        for (int i = 0; i < 3; ++i)
+        {
+            outVerts[i] = inVerts[i];
+        }
+        return 3;
+    }
+    else
+    {
+        // Triangle is partially behind the near clipping plane and needs clipping
+        int outCount = 0;
+        if (inFrontCount == 1)
+        {
+            // One vertex in front; form a smaller triangle
+            outVerts[outCount++] = tempVerts[0]; // The single in-front vertex
+
+            // Find intersection points for edges going through the clipping plane
+            for (int i = 0; i < 2; ++i)
+            {
+                float t = (nearClipZ - tempVerts[0].z) / (tempVerts[3 - i].z - tempVerts[0].z);
+                outVerts[outCount++] = interpolate(tempVerts[0], tempVerts[3 - i], t);
+            }
+            return 3; // Returning a single clipped triangle
+        }
+        else if (inFrontCount == 2)
+        {
+            // Two vertices in front; form a quadrilateral (split into two triangles)
+            // First triangle
+            outVerts[outCount++] = tempVerts[0];
+            outVerts[outCount++] = tempVerts[1];
+            float t = (nearClipZ - tempVerts[1].z) / (tempVerts[2].z - tempVerts[1].z);
+            outVerts[outCount++] = interpolate(tempVerts[1], tempVerts[2], t);
+
+            // Second triangle
+            outVerts[outCount++] = tempVerts[0];
+            outVerts[outCount++] = outVerts[2]; // Re-use the intersection point
+            t = (nearClipZ - tempVerts[0].z) / (tempVerts[2].z - tempVerts[0].z);
+            outVerts[outCount++] = interpolate(tempVerts[0], tempVerts[2], t);
+            // print_point(outVerts[3]);
+            // print_point(outVerts[4]);
+            // print_point(outVerts[5]);
+            return 6; // Returning two triangles forming a quadrilateral
+        }
+    }
+    return 0; // Should not reach here
+}
+
+void gl3d_draw_face(face f, obj Object)
+{
+    Vec3 a = vec3_add(vec3_multi_scalar(Object.vertices[f.a], Object.scale), Object.translation);
+    Vec3 b = vec3_add(vec3_multi_scalar(Object.vertices[f.b], Object.scale), Object.translation);
+    Vec3 c = vec3_add(vec3_multi_scalar(Object.vertices[f.c], Object.scale), Object.translation);
+
+    color_t color = calculate_lighting(a, b, c, Object.color, f.flipped);
+
+    Vec3 inVerts[3] = {transform_point(module.viewMatrix, a), transform_point(module.viewMatrix, b), transform_point(module.viewMatrix, c)};
+    Vec3 outVerts[6];                                                            // Can hold up to two triangles after clipping
+    int vertexCount = clip_triangle_against_near_plane(inVerts, outVerts, -100); // Assuming nearClipZ = 1.0f
+
+    if (vertexCount == 0)
+    {
+        // The entire triangle is behind the camera; don't draw anything.
+        return;
+    }
+
+    // Transform clipped vertices to screen space and draw
+    for (int i = 0; i < vertexCount; i += 3)
+    {
+        Vec2 screenVerts[3];
+        for (int j = 0; j < 3; j++)
+        {
+            Vec3 clipSpaceVert = transform_point(module.projectionMatrix, outVerts[i + j]);
+            screenVerts[j] = project_point(clipSpaceVert);
+        }
+        // Call the function to draw the triangle on the screen
+        gl3d_draw_triangle(screenVerts[0].x, screenVerts[0].y, screenVerts[1].x, screenVerts[1].y, screenVerts[2].x, screenVerts[2].y, color);
+    }
+}
+
+enum
+{
+    INSIDE = 0, // 0000
+    LEFT = 1,   // 0001
+    RIGHT = 2,  // 0010
+    BOTTOM = 4, // 0100
+    TOP = 8     // 1000
+};
+
+// Function to compute the outcode for Cohen-Sutherland algorithm
+static int compute_outcode(float x, float y)
+{
+    int code = INSIDE;
+
+    if (x < 0)
+        code |= LEFT;
+    else if (x > module.screenW)
+        code |= RIGHT;
+    if (y < 0)
+        code |= BOTTOM;
+    else if (y > module.screenH)
+        code |= TOP;
+
+    return code;
+}
+
+// Cohen-Sutherland line clipping algorithm
+static int clip_line(Vec2 *a, Vec2 *b)
+{
+    int outcode0 = compute_outcode(a->x, a->y);
+    int outcode1 = compute_outcode(b->x, b->y);
+    // int accept = 0;
+
+    while (1)
+    {
+        if (!(outcode0 | outcode1))
+        { // Bitwise OR is 0: both points inside
+            // accept = 1;
+            break;
+        }
+        else if (outcode0 & outcode1)
+        { // Bitwise AND is not 0: both points share an outside zone
+            break;
+        }
+        else
+        {
+            // At least one endpoint is outside the clip rectangle; pick it.
+            int outcodeOut = outcode0 ? outcode0 : outcode1;
+
+            float x = 0, y = 0;
+
+            // Find the intersection point; using formulas y = y1 + slope * (x - x1), x = x1 + (1 / slope) * (y - y1).
+            if (outcodeOut & TOP)
+            { // Point is above the clip rectangle
+                x = a->x + (b->x - a->x) * (module.screenH - a->y) / (b->y - a->y);
+                y = module.screenH;
+            }
+            else if (outcodeOut & BOTTOM)
+            { // Point is below the clip rectangle
+                x = a->x + (b->x - a->x) * (0 - a->y) / (b->y - a->y);
+                y = 0;
+            }
+            else if (outcodeOut & RIGHT)
+            { // Point is to the right of clip rectangle
+                y = a->y + (b->y - a->y) * (module.screenW - a->x) / (b->x - a->x);
+                x = module.screenW;
+            }
+            else if (outcodeOut & LEFT)
+            { // Point is to the left of clip rectangle
+                y = a->y + (b->y - a->y) * (0 - a->x) / (b->x - a->x);
+                x = 0;
+            }
+
+            // Now move outside point to intersection point to clip
+            if (outcodeOut == outcode0)
+            {
+                a->x = x;
+                a->y = y;
+                outcode0 = compute_outcode(a->x, a->y);
+            }
+            else
+            {
+                b->x = x;
+                b->y = y;
+                outcode1 = compute_outcode(b->x, b->y);
+            }
+        }
+    }
+    return 1;
+}
+
+int clip_line_against_near_plane(Vec3 *start, Vec3 *end, float nearClipZ)
+{
+    int startInFront = start->z < nearClipZ;
+    int endInFront = end->z < nearClipZ;
+
+    if (startInFront && endInFront)
+    {
+        // Both points are in front; no clipping needed
+        return 1;
+    }
+    else if (!startInFront && !endInFront)
+    {
+        // Both points are behind; don't draw the line
+        return 0;
+    }
+    else
+    {
+        // The line crosses the near clipping plane; clip it
+        float t = (nearClipZ - start->z) / (end->z - start->z);
+        Vec3 intersection = interpolate(*start, *end, t);
+
+        if (startInFront)
+        {
+            *end = intersection;
+        }
+        else
+        {
+            *start = intersection;
+        }
+        return 1;
+    }
+}
+
+// Function to draw a line if it is within the screen after clipping
+void gl3d_draw_line(Vec3 a, Vec3 b, color_t c)
+{
+
+    Vec3 viewPointA = transform_point(module.viewMatrix, a);
+    Vec3 viewPointB = transform_point(module.viewMatrix, b);
+
+    if (!clip_line_against_near_plane(&viewPointA, &viewPointB, -100.0))
+    {
+        return; // Line is completely behind the camera; do not draw
+    }
+
+    Vec3 perspectivePointA = transform_point(module.projectionMatrix, viewPointA);
+    Vec3 perspectivePointB = transform_point(module.projectionMatrix, viewPointB);
+
+    Vec2 screenPointA = project_point(perspectivePointA);
+    Vec2 screenPointB = project_point(perspectivePointB);
+
+    if (clip_line(&screenPointA, &screenPointB))
+        gl_draw_line(screenPointA.x, screenPointA.y, screenPointB.x, screenPointB.y, c);
+}
+
+// ======================================
+static float
+find_central_z(obj o)
 {
     float netZ = 0;
     for (int i = 0; i < o.num_vertices; i++)
@@ -446,56 +813,6 @@ static void generate_drawing_queue(obj Object, drawable drawing_queue[])
     }
 }
 
-static color_t adjust_color(color_t original_color, float factor)
-{
-    int r = (original_color >> 16) & 0xFF;
-    int g = (original_color >> 8) & 0xFF;
-    int b = original_color & 0xFF;
-
-    factor = (factor < -1.0) ? -1.0 : (factor > 1.0) ? 1.0
-                                                     : factor;
-
-    factor /= 2.0; // Factor is now in the range [-0.5, 0.5]
-
-    if (factor > 0)
-    {
-        // Mix towards white
-        r += (255.0 - r) * factor;
-        g += (255.0 - g) * factor;
-        b += (255.0 - b) * factor;
-    }
-    else
-    {
-        // Mix towards black
-        r += r * factor; // factor is negative, so this reduces the color component
-        g += g * factor;
-        b += b * factor;
-    }
-
-    return gl_color(r, g, b);
-}
-
-static color_t calculate_lighting(Vec3 a, Vec3 b, Vec3 c, color_t original_color, int flipped)
-{
-    if (flipped)
-    {
-        Vec3 temp = a;
-        a = c;
-        c = temp;
-    }
-    Vec3 normal = vec3_normalize(vec3_plane_normal(a, b, c));
-    Vec3 light = vec3_normalize(module.lighting);
-
-    float light_intensity = vec3_dot(normal, light);
-    // printf("Point: {%d, %d, %d} {%d, %d, %d} {%d, %d, %d}", (int)a.x, (int)a.y, (int)a.z, (int)b.x, (int)b.y, (int)b.z, (int)c.x, (int)c.y, (int)c.z);
-    // printf("Normal: {%d, %d, %d} Light: {%d, %d, %d}\n", (int)normal.x, (int)normal.y, (int)normal.z, (int)(light.x * 1000), (int)(light.y * 1000), (int)(light.z * 1000));
-    // printf("Light Intensity: %d\n", (int)(light_intensity * 1000));
-
-    color_t shaded_color = adjust_color(original_color, light_intensity);
-
-    return shaded_color;
-}
-
 void gl3d_draw_object(obj Object)
 {
     drawable render_queue[Object.num_faces + Object.num_edges];
@@ -524,23 +841,16 @@ void gl3d_draw_object(obj Object)
             edge *e = (edge *)d.item;
             Vec2 screen_point_1 = projected_points[(*e).i];
             Vec2 screen_point_2 = projected_points[(*e).j];
-            if (!outOfBounds(screen_point_1) || !outOfBounds(screen_point_2))
-                gl_draw_line(screen_point_1.x, screen_point_1.y, screen_point_2.x, screen_point_2.y, GL_BLACK);
+            Vec3 point_1 = vec3_add(vec3_multi_scalar(Object.vertices[(*e).i], Object.scale), Object.translation);
+            Vec3 point_2 = vec3_add(vec3_multi_scalar(Object.vertices[(*e).j], Object.scale), Object.translation);
+
+            // if (!outOfBounds(screen_point_1, point_1) || !outOfBounds(screen_point_2, point_2))
+            gl3d_draw_line(point_1, point_2, GL_BLACK);
         }
         else if (d.type == DRAWABLE_FACE)
         {
             face *f = (face *)d.item;
-
-            Vec3 a = Object.vertices[(*f).a];
-            Vec3 b = Object.vertices[(*f).b];
-            Vec3 c = Object.vertices[(*f).c];
-
-            color_t color = calculate_lighting(a, b, c, Object.color, (*f).flipped);
-
-            Vec2 a_projected = projected_points[(*f).a];
-            Vec2 b_projected = projected_points[(*f).b];
-            Vec2 c_projected = projected_points[(*f).c];
-            gl3d_draw_face(a_projected, b_projected, c_projected, color);
+            gl3d_draw_face(*f, Object);
         }
     }
 }
@@ -560,6 +870,7 @@ void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center, Vec3 lightin
 {
     module.screenW = screenW;
     module.screenH = screenH;
+    module.fov = 60;
 
     module.lighting = lighting;
 
@@ -567,6 +878,7 @@ void gl3d_init(float screenW, float screenH, Vec3 eye, Vec3 center, Vec3 lightin
     module.center = center;
     module.up = (Vec3){0.0, 1.0, 0.0};
 
+    generate_perspective_proj_matrix(module.projectionMatrix);
     generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
 }
 
@@ -578,24 +890,23 @@ void gl3d_clear(color_t c)
 static int max_pos_rotation = 43000;
 static int max_neg_rotation = 53000;
 
-void gl3d_remote_rotate_camera(short x_g, int time_interval) {
+void gl3d_remote_rotate_camera(short x_g, int time_interval)
+{
     float displacement = x_g / 3000;
-    
-    float angle = (x_g > 0) ? (time_interval) * displacement / (max_pos_rotation) * (PI / 4) :
-                (time_interval) * displacement / (max_neg_rotation) * (PI / 4);
-    
+
+    float angle = (x_g > 0) ? (time_interval)*displacement / (max_pos_rotation) * (PI / 4) : (time_interval)*displacement / (max_neg_rotation) * (PI / 4);
+
     // float magnitude = sqrt(module.center.x * module.center.x + module.center.z * module.center.z);
     Vec3 new_vector;
     new_vector.x = module.center.x - module.eye.x;
     new_vector.z = module.center.z - module.eye.z;
     new_vector.y = 0;
 
-
     float temp = new_vector.x * cos(angle) + new_vector.z * sin(angle);
-    
+
     // printf("%d, %d\n", (int)(module.center.x), (int)(module.center.z));
 
-    new_vector.z = - new_vector.x * sin(angle) + new_vector.z * cos(angle);
+    new_vector.z = -new_vector.x * sin(angle) + new_vector.z * cos(angle);
     new_vector.x = temp;
 
     module.center.x = module.eye.x + new_vector.x;
@@ -610,7 +921,7 @@ void gl3d_remote_rotate_camera(short x_g, int time_interval) {
 static int gl3d_test_collision(Vec3 collision_vector) {
     for(int i = 0; i < module.numObjects; i++) {
         obj curr_object = module.Objects[i];
-        
+
         int max_x = curr_object.vertices[0].x;
         int max_z = curr_object.vertices[0].z;
 
@@ -635,25 +946,26 @@ static int gl3d_test_collision(Vec3 collision_vector) {
     return 0;
 }*/
 
+void gl3d_move_camera_forward(int speed)
+{
 
-void gl3d_move_camera_forward() {
-
-    if(gl_read_pixel(SCREEN_WIDTH/2, SCREEN_HEIGHT/2) != GL_BLACK) return;
+    if (gl_read_pixel(module.screenW / 2, module.screenH / 2) != gl_color(0x8e, 0xca, 0xe6))
+        return;
 
     Vec3 new_vector;
     new_vector.x = module.center.x - module.eye.x;
     new_vector.z = module.center.z - module.eye.z;
     new_vector.y = 0;
 
-    float theta = atan(new_vector.x/new_vector.z);
+    float theta = atan(new_vector.x / new_vector.z);
 
-    printf("%d, %d, %d\n", (int)(module.center.x), (int)(module.center.y), (int)(module.center.z));
-    printf("%d, %d, %d\n", (int)(module.eye.x), (int)(module.eye.y), (int)(module.eye.z));
+    // printf("%d, %d, %d\n", (int)(module.center.x), (int)(module.center.y), (int)(module.center.z));
+    // printf("%d, %d, %d\n", (int)(module.eye.x), (int)(module.eye.y), (int)(module.eye.z));
 
-    module.eye.z -= cos(theta);
-    module.eye.x -= sin(theta);
-    module.center.z -= cos(theta);
-    module.center.x -= sin(theta);
+    module.eye.z += cos(theta) * speed;
+    module.eye.x += sin(theta) * speed;
+    module.center.z += cos(theta) * speed;
+    module.center.x += sin(theta) * speed;
 
     generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
 }
@@ -736,9 +1048,14 @@ void gl3d_draw_axes(float length)
     Vec2 y_screen = calculate_point(y);
     Vec2 z_screen = calculate_point(z);
 
-    gl_draw_line(origin_screen.x, origin_screen.y, x_screen.x, x_screen.y, GL_RED);
-    gl_draw_line(origin_screen.x, origin_screen.y, y_screen.x, y_screen.y, GL_GREEN);
-    gl_draw_line(origin_screen.x, origin_screen.y, z_screen.x, z_screen.y, GL_BLUE);
+    if (!outOfBounds(origin_screen, origin) || !outOfBounds(x_screen, x))
+        gl_draw_line(origin_screen.x, origin_screen.y, x_screen.x, x_screen.y, GL_RED);
+
+    if (!outOfBounds(origin_screen, origin) || !outOfBounds(y_screen, y))
+        gl_draw_line(origin_screen.x, origin_screen.y, y_screen.x, y_screen.y, GL_GREEN);
+
+    if (!outOfBounds(origin_screen, origin) || !outOfBounds(z_screen, z))
+        gl_draw_line(origin_screen.x, origin_screen.y, z_screen.x, z_screen.y, GL_BLUE);
 
     int originsize = 2;
     gl_draw_string(20, 20, "Axes: X is red, Y is green, Z is black", GL_BLACK);
@@ -758,7 +1075,8 @@ static void swap(int *a, int *b)
 
 void gl3d_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t c)
 {
-    // Sort the vertices in ascending order based on y-coordinate
+
+    // Sort the vertices by y-coordinate
     if (y1 > y2)
     {
         swap(&x1, &x2);
@@ -775,43 +1093,31 @@ void gl3d_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3, color_t 
         swap(&y2, &y3);
     }
 
-    for (int y = y1; y <= y3; y++)
+    // Clipping y-coordinates to the screen
+    int startY = 0 < y1 ? y1 : 0;
+    int endY = y3 < module.screenH - 1 ? y3 : module.screenH - 1;
+
+    for (int y = startY; y <= endY; y++)
     {
-        int minX = x1, maxX = x1;
-
-        // Adjust minX and maxX to span the current y level
+        // Compute minX and maxX for the current scanline
+        float alpha = y > y1 ? (float)(y - y1) / (y3 - y1) : 0;
+        float beta = (y > y2 && y2 != y3) ? (float)(y - y2) / (y3 - y2) : 0;
         if (y < y2)
-        {
-            // Scan from y1 to y2
-            minX = (x1 * (y2 - y) + x2 * (y - y1)) / (y2 - y1);
-        }
-        else
-        {
-            // Scan from y2 to y3
-            minX = (x2 * (y3 - y) + x3 * (y - y2)) / (y3 - y2);
-        }
+            beta = (y > y1 && y1 != y2) ? (float)(y - y1) / (y2 - y1) : 0;
 
-        if (y <= y3)
-        {
-            if (y == y2 && y2 == y3)
-            {
-                minX = x2 < x3 ? x2 : x3;
-                maxX = x2 < x3 ? x3 : x2;
-            }
-            else
-            {
-                // Scan from y1 to y3 for maxX
-                maxX = (x1 * (y3 - y) + x3 * (y - y1)) / (y3 - y1);
-            }
-        }
+        int minX = x1 + (x3 - x1) * alpha;
+        int maxX = x2 + (x3 - x2) * beta;
 
-        // Ensure minX is less than maxX
+        if (y < y2)
+            maxX = x1 + (x2 - x1) * beta;
+
         if (minX > maxX)
-        {
             swap(&minX, &maxX);
-        }
 
-        // Draw horizontal line for the current y level
+        // Clipping x-coordinates to the screen
+        minX = 0 < minX ? minX : 0;
+        maxX = maxX < module.screenW - 1 ? maxX : module.screenW - 1;
+
         for (int x = minX; x <= maxX; x++)
         {
             gl_draw_pixel(x, y, c);

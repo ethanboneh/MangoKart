@@ -13,8 +13,6 @@
 #define SCREEN_WIDTH 800
 #define SCREEN_HEIGHT 600
 
-
-
 static void pause(const char *message)
 {
     if (message)
@@ -25,81 +23,13 @@ static void pause(const char *message)
     uart_putchar('\n');
 }
 
-static void test_gl_polygons(void)
-{
-    const int WIDTH = 800;
-    const int HEIGHT = 600;
-
-    // Double buffer mode, make sure you test single buffer too!
-    gl_init(WIDTH, HEIGHT, GL_DOUBLEBUFFER);
-    assert(gl_get_height() == HEIGHT);
-    assert(gl_get_width() == WIDTH);
-
-    float pPoint[] = {30, 100, 60, 1};
-
-    gl_clear(GL_GREEN);
-
-    gl_draw_pixel(pPoint[0], pPoint[1], GL_PURPLE);
-
-    // float *nPoint = projectPoint(pPoint);
-
-    // printf("%d, ", (int)(100 * nPoint[0]));
-    // printf("%d", (int)(100 * nPoint[1]));
-
-    // gl_draw_pixel(nPoint[0] + 1, nPoint[1] + 1, GL_BLUE);
-
-    // Show buffer with drawn contents
-    gl_swap_buffer();
-    pause("Cleared display with color green, click for lines");
-
-    gl_clear(GL_CAYENNE);
-
-    gl_draw_string(100, 50, "Testing Lines:", GL_AMBER);
-    gl_draw_line(100, 100, 150, 300, GL_AMBER);
-    gl_draw_line(150, 300, 230, 400, GL_BLUE);
-    gl_draw_line(100, 100, 700, 500, GL_WHITE);
-    gl_draw_line(100, 140, 700, 100, GL_BLACK);
-    gl_draw_line(100, 100, 700, 100, GL_SILVER);
-    gl_draw_line(100, 100, 100, 500, GL_CYAN);
-
-    gl_swap_buffer();
-    pause("Now displaying WIDTH x HEIGHT, testing lines");
-
-    gl_clear(GL_INDIGO);
-
-    gl_draw_string(100, 50, "Testing Triangles:", GL_CYAN);
-    gl_draw_triangle(100, 100, 150, 300, 300, 150, GL_ORANGE);
-    gl_draw_triangle(100, 150, 150, 300, 300, 150, GL_WHITE);
-    gl_draw_triangle(300, 200, 300, 500, 450, 130, GL_YELLOW);
-    gl_draw_triangle(400, 550, 600, 550, 500, 300, GL_BLUE);
-
-    gl_swap_buffer();
-    pause("Now displaying WIDTH x HEIGHT, testing triangles");
-
-    gl_clear(gl_color(0x8a, 0xc9, 0x26));
-    gl_draw_rect(0, 0, 800, 300, gl_color(0x00, 0xb4, 0xd8));
-
-    gl_draw_rect(190, 40, 250, 35, gl_color(0xd6, 0x28, 0x28));
-    gl_draw_string(200, 50, "Testing Polygons:", GL_WHITE);
-
-    gl_draw_polygon(0, 600, 200, 300, 600, 300, 800, 600, gl_color(0x33, 0x33, 0x33));
-
-    gl_draw_polygon(380, 600, 395, 300, 405, 300, 420, 600, GL_AMBER); // lines
-    gl_draw_rect(300, 400, 200, 70, gl_color(0x33, 0x33, 0x33));
-
-    gl_draw_polygon(186, 320, 200, 300, 186, 100, 200, 105, GL_SILVER); // pole
-
-    gl_swap_buffer();
-    pause("Now displaying WIDTH x HEIGHT, testing polygons");
-}
-
-void test_draw_object()
+void play_game()
 {
     const int WIDTH = SCREEN_WIDTH;
     const int HEIGHT = SCREEN_HEIGHT;
 
-    Vec3 eye = {0.0, 150.0, 800.0};
-    Vec3 center = {0.0, 0.0, 0.0};
+    Vec3 eye = {50.0, 200.0, -300.0};
+    Vec3 center = {50.0, 0.0, 300.0};
     Vec3 lighting = {-100.0, 200.0, -300.0};
 
     int frame_delay = 0;  // ms
@@ -111,272 +41,261 @@ void test_draw_object()
 
     int lastFrameTime = 10;
 
-    Vec3 quad_entrance_one[] = {
-        (Vec3){50,0,500},
-        (Vec3){50,0,450},
-        (Vec3){200,0,500},
-        (Vec3){200,0,450},
-
-        (Vec3){50,200,500},
-        (Vec3){50,200,450},
-        (Vec3){200,200,500},
-        (Vec3){200,200,450}
-    };
-
-    Vec3 quad_entrance_two[] = {
-        (Vec3){-50,0,500},
-        (Vec3){-50,0,450},
-        (Vec3){-100,0,500},
-        (Vec3){-100,0,450},
-
-        (Vec3){-50,200,500},
-        (Vec3){-50,200,450},
-        (Vec3){-100,200,500},
-        (Vec3){-100,200,450}
-    };
-
-    Vec3 quad_exit_one[] = {
-        (Vec3){-100,0,500},
-        (Vec3){-100,0,400},
-        (Vec3){-150,0,500},
-        (Vec3){-150,0,400},
-
-        (Vec3){-100,200,500},
-        (Vec3){-100,200,400},
-        (Vec3){-150,200,500},
-        (Vec3){-150,200,400}
-    };
-
-    Vec3 quad_exit_two[] = {
-        (Vec3){-100,0,350},
-        (Vec3){-100,0,150},
-        (Vec3){-150,0,350},
-        (Vec3){-150,0,150},
-
-        (Vec3){-100,200,350},
-        (Vec3){-100,200,150},
-        (Vec3){-150,200,350},
-        (Vec3){-150,200,150}
-    };
-
-    Vec3 quad_wall_one[] = {
-        (Vec3){200,0,150},
-        (Vec3){200,0,100},
-        (Vec3){-150,0,150},
-        (Vec3){-150,0,100},
-
-        (Vec3){200,200,150},
-        (Vec3){200,200,100},
-        (Vec3){-150,200,150},
-        (Vec3){-150,200,100}
-    };
-
-    Vec3 quad_wall_two[] = {
-        (Vec3){200,0,500},
-        (Vec3){200,0,100},
-        (Vec3){220,0,500},
-        (Vec3){220,0,100},
-
-        (Vec3){200,200,500},
-        (Vec3){200,200,100},
-        (Vec3){220,200,500},
-        (Vec3){220,200,100}
-    };
-
-    Vec3 building_vertices[] = {
-        (Vec3){220,0,500},
-        (Vec3){220,0,-800},
-        (Vec3){500,0,500},
-        (Vec3){500,0,-800},
-
-        (Vec3){220,100,500},
-        (Vec3){220,100,-800},
-        (Vec3){500,100,500},
-        (Vec3){500,100,-800},
-    };
-
-
-
-    Vec3 quad_vertices[] = {
-        (Vec3){200,0,500},
-        (Vec3){200,0,-800},
-        (Vec3){220,0,500},
-        (Vec3){220,0,-800},
-
-        (Vec3){200,10,500},
-        (Vec3){200,10,-800},
-        (Vec3){220,10,500},
-        (Vec3){220,10,-800},
-    };
-
     Vec3 grass_vertices[] = {
-        (Vec3){-200,0,-800},
-        (Vec3){-200,0,-1000},
-        (Vec3){500,0,-800},
-        (Vec3){500,0,-1000},
-
-        (Vec3){-200,10,-800},
-        (Vec3){-200,10,-1000},
-        (Vec3){500,10,-800},
-        (Vec3){500,10,-1000},
-    };
-
-    Vec3 side_vertices[] = {
-        (Vec3){-200,0,500},
-        (Vec3){-200,0,-800},
-        (Vec3){-220,0,500},
-        (Vec3){-220,0,-800},
-
-        (Vec3){-200,10,500},
-        (Vec3){-200,10,-800},
-        (Vec3){-220,10,500},
-        (Vec3){-220,10,-800},
+        (Vec3){100, 0, 0},
+        (Vec3){100, 0, 200},
+        (Vec3){400, 0, 0},
+        (Vec3){400, 0, 200},
     };
 
     edge grass_edges[] = {
         (edge){0, 1},
         (edge){0, 2},
-        (edge){0, 4},
-
         (edge){1, 3},
-        (edge){1, 4},
-
         (edge){2, 3},
-        (edge){2, 6},
-
-        (edge){3, 7},
-        
-        (edge){4,5},
-        (edge){4,6},
-        (edge){5,7},
-        (edge){6,7}
     };
 
     face grass_faces[] = {
-        (face){0,1,2,0},
-        (face){1,2,3,0},
+        (face){0, 1, 2, 0},
+        (face){1, 2, 3, 1},
+    };
 
-        (face){0,1,5,0},
-        (face){0,4,5,0},
+    Vec3 road_vertices[] = {
+        (Vec3){0, 0, 0},
+        (Vec3){100, 0, 0},
+        (Vec3){0, 0, 300},
+        (Vec3){100, 0, 200},
+        (Vec3){400, 0, 400},
+        (Vec3){300, 0, 500},
+        (Vec3){300, 0, 700},
+        (Vec3){400, 0, 700},
+    };
 
-        (face){0,2,6,0},
-        (face){0,4,6,0},
+    edge road_edges[] = {
+        (edge){0, 1},
+        (edge){1, 3},
+        (edge){3, 4},
+        (edge){4, 7},
+        (edge){7, 6},
+        (edge){6, 5},
+        (edge){5, 2},
+        (edge){2, 0}};
 
-        (face){2,3,7,0},
-        (face){2,6,7,0},
+    face road_faces[] = {
+        (face){0, 0, 0, 0}
+        // (face){0, 1, 3, 0},
+        // (face){0, 2, 3, 0},
+        // (face){2, 3, 5, 0},
+        // (face){3, 4, 5, 0},
+        // (face){4, 5, 7, 0},
+        // (face){5, 6, 7, 0},
+    };
 
-        (face){1,3,7,0},
-        (face){1,5,7,0},
+    Vec3 fence_vertices[] = {
+        (Vec3){0, 0, 0},
+        (Vec3){100, 0, 0},
+        (Vec3){0, 0, 300},
+        (Vec3){100, 0, 200},
+        (Vec3){400, 0, 400},
+        (Vec3){300, 0, 500},
+        (Vec3){300, 0, 700},
+        (Vec3){400, 0, 700},
 
-        (face){4,6,7,0},
-        (face){4,5,7,0},
+        (Vec3){0, 20, 0},
+        (Vec3){100, 20, 0},
+        (Vec3){0, 20, 300},
+        (Vec3){100, 20, 200},
+        (Vec3){400, 20, 400},
+        (Vec3){300, 20, 500},
+        (Vec3){300, 20, 700},
+        (Vec3){400, 20, 700},
+    };
+
+    edge fence_edges[] = {
+        (edge){0, 1},
+        (edge){1, 3},
+        (edge){3, 4},
+        (edge){4, 7},
+        (edge){7, 6},
+        (edge){6, 5},
+        (edge){5, 2},
+        (edge){2, 0},
+
+        // (edge){9, 11},
+        // (edge){11, 12},
+        // (edge){12, 15},
+        // (edge){15, 14},
+        (edge){14, 13},
+        (edge){13, 10},
+        (edge){10, 8},
+
+        (edge){0, 8},
+        // (edge){1, 9},
+        (edge){2, 10},
+        // (edge){3, 11},
+        // (edge){4, 12},
+        (edge){5, 13},
+        (edge){6, 14},
+        // (edge){7, 15},
+
+    };
+
+    face fence_faces[] = {
+        (face){0, 0, 0, 0}};
+
+    Vec3 building_vertices[] = {
+        (Vec3){0, 0, 320},
+        (Vec3){280, 0, 520},
+        (Vec3){280, 0, 900},
+        (Vec3){0, 0, 700},
+
+        (Vec3){0, 100, 320},
+        (Vec3){280, 100, 520},
+        (Vec3){280, 100, 900},
+        (Vec3){0, 100, 700},
+    };
+
+    edge building_edges[] = {
+        (edge){0, 1},
+        (edge){1, 2},
+        (edge){2, 3},
+        (edge){3, 0},
+
+        (edge){4, 5},
+        (edge){5, 6},
+        (edge){6, 7},
+        (edge){7, 4},
+
+        (edge){0, 4},
+        (edge){1, 5},
+        (edge){2, 6},
+        (edge){3, 7},
+    };
+
+    face building_faces[] = {
+        (face){4, 5, 6, 0},
+        (face){4, 6, 7, 0},
+    };
+
+    Vec3 pole_vertices[] = {
+        (Vec3){101, 0, 201},
+        (Vec3){99, 0, 199},
+        (Vec3){99, 0, 201},
+        (Vec3){101, 0, 199},
+
+        (Vec3){101, 200, 201},
+        (Vec3){99, 200, 199},
+        (Vec3){99, 200, 201},
+        (Vec3){101, 200, 199},
+    };
+
+    edge pole_edges[] = {
+        (edge){0, 1},
+        (edge){1, 3},
+        (edge){3, 2},
+        (edge){2, 0},
+
+        (edge){4, 5},
+        (edge){5, 7},
+        (edge){7, 6},
+        (edge){6, 4},
+
+        (edge){0, 4},
+        (edge){1, 5},
+        (edge){2, 6},
+        (edge){3, 7},
+    };
+
+    face pole_faces[] = {
+        (face){4, 5, 6, 0},
+        (face){4, 6, 7, 0},
+    };
+
+    Vec3 finish_vertices[] = {
+        (Vec3){300, 130, 700},
+        (Vec3){400, 130, 700},
+        (Vec3){300, 100, 700},
+        (Vec3){400, 100, 700},
+        (Vec3){300, 0, 700},
+        (Vec3){400, 0, 700},
+    };
+
+    edge finish_edges[] = {
+        (edge){0, 1},
+        (edge){2, 3},
+        (edge){0, 2},
+        (edge){1, 3},
+        (edge){2, 4},
+        (edge){3, 5},
+    };
+
+    face finish_faces[] = {
+        (face){0, 1, 2, 0},
+        (face){1, 2, 3, 1},
     };
 
     int num_grass_vertices = sizeof(grass_vertices) / sizeof(Vec3);
     int num_grass_edges = sizeof(grass_edges) / sizeof(edge);
     int num_grass_faces = sizeof(grass_faces) / sizeof(face);
 
+    int num_road_vertices = sizeof(road_vertices) / sizeof(Vec3);
+    int num_road_edges = sizeof(road_edges) / sizeof(edge);
+    int num_road_faces = sizeof(road_faces) / sizeof(face);
 
-    Vec3 vertices[] = {
-        (Vec3){0, 0, 0},
-        (Vec3){100, 0, 0},
-        (Vec3){100, 100, 0},
-        (Vec3){0, 100, 0},
-        (Vec3){0, 0, 100},
-        (Vec3){100, 0, 100},
-        (Vec3){100, 100, 100},
-        (Vec3){0, 100, 100},
-    };
+    int num_fence_vertices = sizeof(fence_vertices) / sizeof(Vec3);
+    int num_fence_edges = sizeof(fence_edges) / sizeof(edge);
+    int num_fence_faces = sizeof(fence_faces) / sizeof(face);
 
-    edge edges[] = {
-        (edge){0, 5},
-        (edge){5, 1},
-        (edge){1, 0},
-        (edge){1, 2},
-        (edge){2, 5},
-        (edge){2, 0},
-    };
+    int num_building_vertices = sizeof(building_vertices) / sizeof(Vec3);
+    int num_building_edges = sizeof(building_edges) / sizeof(edge);
+    int num_building_faces = sizeof(building_faces) / sizeof(face);
 
-    face faces[] = {
-        (face){2, 1, 5, 0},
-        (face){0, 1, 5, 0},
-    };
+    int num_pole_vertices = sizeof(pole_vertices) / sizeof(Vec3);
+    int num_pole_edges = sizeof(pole_edges) / sizeof(edge);
+    int num_pole_faces = sizeof(pole_faces) / sizeof(face);
 
-    edge cube_edges[] = {
-        (edge){1, 5},
-        (edge){5, 4},
-        (edge){0, 4},
-        (edge){0, 1},
-        (edge){2, 6},
-        (edge){6, 7},
-        (edge){3, 7},
-        (edge){3, 2},
-        (edge){5, 6},
-        (edge){4, 7},
-        (edge){2, 1},
-        (edge){0, 3},
-    };
-
-    face cube_faces[] = {
-        (face){2, 1, 5, 0},
-        (face){2, 6, 5, 1},
-
-        (face){6, 4, 5, 0},
-        (face){6, 4, 7, 1},
-        (face){0, 7, 4, 0},
-        (face){0, 7, 3, 1},
-        // (face){0, 2, 1, 0},
-        // (face){0, 2, 3, 1},
-
-        (face){6, 3, 7, 0},
-        (face){2, 3, 6, 0},
-    };
+    int num_finish_vertices = sizeof(finish_vertices) / sizeof(Vec3);
+    int num_finish_edges = sizeof(finish_edges) / sizeof(edge);
+    int num_finish_faces = sizeof(finish_faces) / sizeof(face);
 
     Vec3 translation = (Vec3){0, 0, 0};
-    Vec3 translation2 = (Vec3){-100, 0, 0};
-    Vec3 translation3 = (Vec3){0, 0, 100};
-    Vec3 translation4 = (Vec3){-200, 0, 200};
+    Vec3 translation2 = (Vec3){0, 0, 0};
+    Vec3 translation3 = (Vec3){0, 0, 0};
+    Vec3 translation4 = (Vec3){0, 0, 0};
+    Vec3 translation5 = (Vec3){0, 0, 0};
+    Vec3 translation6 = (Vec3){0, 0, 0};
 
-    float scale = 1;
-    float scale2 = 1;
-    float scale3 = 3;
+    float scale = 5;
+    float scale2 = 5;
+    float scale3 = 5;
+    float scale4 = 5;
+    float scale5 = 5;
+    float scale6 = 5;
 
-    int num_vertices = sizeof(vertices) / sizeof(Vec3);
-    int num_edges = sizeof(edges) / sizeof(edge);
-    int num_faces = sizeof(faces) / sizeof(face);
+    obj grass = gl3d_create_object(grass_vertices, grass_edges, grass_faces, num_grass_vertices, num_grass_edges, num_grass_faces, translation, scale, GL_MOSS);
+    obj road = gl3d_create_object(road_vertices, road_edges, road_faces, num_road_vertices, num_road_edges, num_road_faces, translation2, scale2, GL_SILVER);
+    obj fence = gl3d_create_object(fence_vertices, fence_edges, fence_faces, num_fence_vertices, num_fence_edges, num_fence_faces, translation3, scale3, GL_CAYENNE);
+    obj building = gl3d_create_object(building_vertices, building_edges, building_faces, num_building_vertices, num_building_edges, num_building_faces, translation4, scale4, GL_CAYENNE);
+    obj pole = gl3d_create_object(pole_vertices, pole_edges, pole_faces, num_pole_vertices, num_pole_edges, num_pole_faces, translation5, scale5, GL_BLUE);
+    obj finish = gl3d_create_object(finish_vertices, finish_edges, finish_faces, num_finish_vertices, num_finish_edges, num_finish_faces, translation6, scale6, GL_GREEN);
 
-    int num_cube_edges = sizeof(cube_edges) / sizeof(edge);
-    int num_cube_faces = sizeof(cube_faces) / sizeof(face);
-
-    obj grass = gl3d_create_object(grass_vertices, grass_edges, grass_faces, num_grass_vertices, num_grass_edges, num_grass_faces, translation, scale, gl_color(0xa6,0x7b,0x5b));
-    obj quad = gl3d_create_object(quad_vertices, grass_edges, grass_faces, num_grass_vertices, num_grass_edges, num_grass_faces, translation, scale, gl_color(0xd2, 0xb4, 0x8c));
-    obj building = gl3d_create_object(building_vertices, grass_edges, grass_faces, num_grass_vertices, num_grass_edges, num_grass_faces, translation, scale, gl_color(0xa6,0x7b,0x5b));
-
-    /*
-    obj object2 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation2, scale2, GL_MOSS);
-    obj object3 = gl3d_create_object(vertices, edges, faces, num_vertices, num_edges, num_faces, translation3, scale3, GL_CYAN);
-    obj object4 = gl3d_create_object(vertices, cube_edges, cube_faces, num_vertices, num_cube_edges, num_cube_faces, translation4, scale, GL_RED);
-    */
-
-    obj objects[] = {grass, quad, building};
+    obj objects[] = {road, fence, building, pole, finish};
 
     int num_objects = sizeof(objects) / sizeof(obj);
 
     gl_clear(gl_color(0x25, 0x59, 0x57));
     gl_draw_string(320, 280, "Loading objects...", GL_WHITE);
-    gl_draw_rect(SCREEN_WIDTH/2 - 10, SCREEN_HEIGHT/2 + 10, 10, 10, GL_PINK);
     gl_swap_buffer();
-    gl_draw_rect(SCREEN_WIDTH/2 - 10, SCREEN_HEIGHT/2 + 10, 10, 10, GL_PINK);
 
-int runningTotal = 0;
-int startTime = timer_get_ticks();
+    int runningTotal = 0;
+    int startTime = timer_get_ticks();
 
-    for (int i = 0; i < 500; i++)
+    for (int i = 0; i < 1000; i++)
     {
-        
+
         int fps = 1000000 / lastFrameTime;
         // printf("FPS: %d\n", fps);
-        gl3d_clear(GL_BLACK);
+        gl3d_clear(gl_color(0x8e, 0xca, 0xe6));
 
         short x_a, y_a, z_a; // Accelerometer data
         short x_g, y_g, z_g;
@@ -386,10 +305,11 @@ int startTime = timer_get_ticks();
 
         lastFrameTime = ((timer_get_ticks() - startTime) / (100 * TICKS_PER_USEC));
         gl3d_remote_rotate_camera(x_g, lastFrameTime);
-        gl3d_move_camera_forward();
-        
+        gl3d_move_camera_forward(20);
+        // gl3d_move_camera((Vec3){eye.x + (10 * i), eye.y, eye.z * (10 * i)}, center);
+
         startTime = timer_get_ticks();
-        
+
         // gl3d_move_camera_forward();
         // gl3d_move_camera((Vec3){3000.0, 150.0, 500.0}, center);
 
@@ -415,8 +335,7 @@ void main(void)
 
     printf("WE ONNNN\n");
 
-
     // test_gl_polygons();
 
-    test_draw_object();
+    play_game();
 }
