@@ -946,11 +946,18 @@ static int gl3d_test_collision(Vec3 collision_vector) {
     return 0;
 }*/
 
+static int speed_booster = 0;
+
 void gl3d_move_camera_forward(int speed)
 {
 
-    if (gl_read_pixel(module.screenW / 2, module.screenH / 2) != gl_color(0x8e, 0xca, 0xe6))
-        return;
+    if (gl_read_pixel(module.screenW / 2, module.screenH / 2) != gl_color(0x8e, 0xca, 0xe6)) {
+        if(gl_read_pixel(module.screenW / 2, module.screenH / 2) == gl_color(0xff, 0xff, 0)) {
+            speed_booster++;
+        } else {
+            return;
+        }
+    }
 
     Vec3 new_vector;
     new_vector.x = module.center.x - module.eye.x;
@@ -962,10 +969,10 @@ void gl3d_move_camera_forward(int speed)
     // printf("%d, %d, %d\n", (int)(module.center.x), (int)(module.center.y), (int)(module.center.z));
     // printf("%d, %d, %d\n", (int)(module.eye.x), (int)(module.eye.y), (int)(module.eye.z));
 
-    module.eye.z += cos(theta) * speed;
-    module.eye.x += sin(theta) * speed;
-    module.center.z += cos(theta) * speed;
-    module.center.x += sin(theta) * speed;
+    module.eye.z += cos(theta) * (speed + speed_booster);
+    module.eye.x += sin(theta) * (speed + speed_booster);
+    module.center.z += cos(theta) * (speed + speed_booster);
+    module.center.x += sin(theta) * (speed + speed_booster);
 
     generate_look_at_matrix(module.eye, module.center, module.up, module.viewMatrix);
 }

@@ -234,6 +234,25 @@ void play_game()
         (face){1, 2, 3, 1},
     };
 
+    Vec3 booster_vertices[] = {
+        (Vec3){300, 0, 600},
+        (Vec3){300, 0, 620},
+        (Vec3){320, 0, 600},
+        (Vec3){320, 0, 620}
+    };
+
+    edge booster_edges[] = {
+        (edge){0, 1},
+        (edge){0, 2},
+        (edge){1, 3},
+        (edge){2, 3},
+    };
+
+    face booster_faces[] = {
+        (face){0, 1, 2, 0},
+        (face){1, 2, 3, 1},
+    };
+
     int num_grass_vertices = sizeof(grass_vertices) / sizeof(Vec3);
     int num_grass_edges = sizeof(grass_edges) / sizeof(edge);
     int num_grass_faces = sizeof(grass_faces) / sizeof(face);
@@ -258,6 +277,11 @@ void play_game()
     int num_finish_edges = sizeof(finish_edges) / sizeof(edge);
     int num_finish_faces = sizeof(finish_faces) / sizeof(face);
 
+    int num_booster_vertices = sizeof(booster_vertices) / sizeof(Vec3);
+    int num_booster_edges = sizeof(booster_edges) / sizeof(edge);
+    int num_booster_faces = sizeof(booster_faces) / sizeof(face);
+
+
     Vec3 translation = (Vec3){0, 0, 0};
     Vec3 translation2 = (Vec3){0, 0, 0};
     Vec3 translation3 = (Vec3){0, 0, 0};
@@ -278,8 +302,9 @@ void play_game()
     obj building = gl3d_create_object(building_vertices, building_edges, building_faces, num_building_vertices, num_building_edges, num_building_faces, translation4, scale4, GL_CAYENNE);
     obj pole = gl3d_create_object(pole_vertices, pole_edges, pole_faces, num_pole_vertices, num_pole_edges, num_pole_faces, translation5, scale5, GL_BLUE);
     obj finish = gl3d_create_object(finish_vertices, finish_edges, finish_faces, num_finish_vertices, num_finish_edges, num_finish_faces, translation6, scale6, GL_GREEN);
+    obj booster = gl3d_create_object(booster_vertices, booster_edges, booster_faces, num_booster_vertices, num_booster_edges, num_booster_faces, translation6, scale6, gl_color(0xff,0xff,0));
 
-    obj objects[] = {road, fence, building, pole, finish};
+    obj objects[] = {road, fence, building, pole, finish, booster};
 
     int num_objects = sizeof(objects) / sizeof(obj);
 
@@ -315,6 +340,11 @@ void play_game()
 
         gl3d_draw_axes(50);
         gl3d_draw_objects(objects, num_objects);
+
+        // object in the middle
+        if(i == 0 || i == 1) {
+            gl_draw_triangle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 5, SCREEN_WIDTH / 2 - 5, SCREEN_HEIGHT / 2 - 8, SCREEN_WIDTH / 2 + 5, SCREEN_HEIGHT / 2 - 8, gl_color(0xff, 0xc0, 0xcb));
+        }
 
         gl_swap_buffer();
 
